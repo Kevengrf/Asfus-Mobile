@@ -37,7 +37,7 @@ export default function AdminAppointmentsPage() {
       .from("appointments")
       .select(`id, booking_date, status, profiles (nome_completo, email)`)
       .order('created_at', { ascending: false });
-    if (data) setAppointments(data);
+    if (data) setAppointments(data as unknown as Appointment[]);
     setIsLoading(false);
   }, []);
 

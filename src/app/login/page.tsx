@@ -40,7 +40,7 @@ export default function LoginPage() {
 
     if (authError || !authData.user) {
       setIsLoading(false);
-      setError(authError.message);
+      setError(authError?.message || "An unknown error occurred.");
       return;
     }
 
