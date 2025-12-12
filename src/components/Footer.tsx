@@ -9,7 +9,7 @@ export function Footer() {
         <div>
           <h3 className="text-lg font-bold text-white mb-4">ASFUS</h3>
           <p className="text-sm">
-            Associação dos Funcionários da SUFRAMA.
+            Associação dos Funcionários da SUAPE.
           </p>
         </div>
 

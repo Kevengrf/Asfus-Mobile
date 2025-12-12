@@ -1,78 +1,114 @@
-import Link from "next/link";
-import { Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
-import { Logo } from "@/components/ui/logo";
+"use client";
 
-const navLinks = [
-  { href: "/", label: "Home" },
-  { href: "/gallery", label: "Galeria" },
-  { href: "/contact", label: "Contato" },
-];
+import Link from "next/link";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetClose,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { AsfusLogo } from "@/components/ui/asfus-logo";
+import { Menu } from "lucide-react";
 
 export function Navbar() {
+  const navLinks = [
+    { href: "/", label: "Home" },
+    { href: "/gallery", label: "Galeria" },
+    { href: "/contact", label: "Contato" },
+  ];
+
+  const authLinks = [
+    { href: "/login", label: "Login Associado" },
+    { href: "/admin/login", label: "Login Admin" },
+  ];
+
   return (
-    <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-gray-700 bg-[#003366] px-4 md:px-6">
-      {/* Logo */}
-      <div className="flex items-center">
-        <Logo />
-      </div>
+    <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-sm">
+      <div className="container mx-auto flex h-20 items-center justify-between px-4">
+        <Link href="/" className="flex items-center gap-2">
+          <AsfusLogo />
+        </Link>
 
-      {/* Desktop Navigation */}
-      <nav className="hidden items-center gap-6 md:flex">
-        {navLinks.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="text-sm font-medium text-white transition-colors hover:text-gray-300"
-          >
-            {link.label}
-          </Link>
-        ))}
-        <Button asChild variant="secondary" className="bg-green-600 hover:bg-green-700 text-white">
-          <Link href="/login">Login</Link>
-        </Button>
-      </nav>
+        <nav className="hidden lg:flex gap-6">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-slate-600 font-medium transition-colors hover:text-blue-700"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
 
-      {/* Mobile Navigation (Hamburger Menu) */}
-      <div className="md:hidden">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="shrink-0 bg-transparent text-white border-gray-400 hover:bg-white/20">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Abrir menu de navegação</span>
+        <div className="hidden lg:flex items-center gap-4">
+          {authLinks.map((link) => (
+            <Button key={link.href} variant="ghost" asChild>
+              <Link href={link.href} className="text-slate-700 hover:text-blue-700">
+                {link.label}
+              </Link>
             </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="bg-[#003366] text-white border-none">
-            <SheetHeader className="hidden">
-                <SheetTitle className="sr-only">Menu Principal</SheetTitle>
-            </SheetHeader>
-            <div className="flex h-full flex-col">
-              <div className="flex items-center justify-start p-4">
-                 <Logo />
-              </div>
-              <Separator className="bg-white/20 my-2" />
-              <nav className="grid gap-4 p-4 text-base font-medium">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="rounded-md px-3 py-2 hover:bg-white/10"
-                  >
-                    {link.label}
+          ))}
+          <Button
+            asChild
+            className="bg-[#003366] text-white rounded-full px-6 hover:bg-blue-800"
+          >
+            <Link href="/register">Pré-Cadastro</Link>
+          </Button>
+        </div>
+
+        <div className="lg:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-6 w-6 text-slate-800" />
+                <span className="sr-only">Toggle navigation menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="bg-white">
+              <div className="flex flex-col gap-8 p-6">
+                <SheetClose asChild>
+                  <Link href="/" className="flex items-center gap-2">
+                    <AsfusLogo />
                   </Link>
-                ))}
-              </nav>
-              <Separator className="bg-white/20 my-2" />
-               <div className="p-4">
-                 <Button asChild variant="secondary" className="w-full bg-green-600 hover:bg-green-700 text-white">
-                    <Link href="/login">Login</Link>
-                 </Button>
-               </div>
-            </div>
-          </SheetContent>
-        </Sheet>
+                </SheetClose>
+                <nav className="flex flex-col gap-6">
+                  {navLinks.map((link) => (
+                    <SheetClose asChild key={link.href}>
+                      <Link
+                        href={link.href}
+                        className="text-lg font-medium text-slate-700"
+                      >
+                        {link.label}
+                      </Link>
+                    </SheetClose>
+                  ))}
+                </nav>
+                <div className="flex flex-col gap-6 border-t pt-6">
+                  {authLinks.map((link) => (
+                    <SheetClose asChild key={link.href}>
+                      <Link
+                        href={link.href}
+                        className="text-lg font-medium text-slate-700"
+                      >
+                        {link.label}
+                      </Link>
+                    </SheetClose>
+                  ))}
+                  <SheetClose asChild>
+                    <Button
+                      asChild
+                      className="bg-[#003366] text-white rounded-full px-6 py-3 text-lg hover:bg-blue-800"
+                    >
+                      <Link href="/register">Pré-Cadastro</Link>
+                    </Button>
+                  </SheetClose>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   );

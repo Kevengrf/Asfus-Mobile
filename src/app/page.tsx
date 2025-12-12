@@ -38,7 +38,7 @@ export default function Home() {
         <div className="absolute top-0 left-0 w-full h-full bg-black/50 z-10"></div>
         <div className="relative z-20 text-center text-white px-4">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-shadow-md">
-            Associação dos Funcionários da SUFRAMA
+            Associação dos Funcionários da SUAPE
           </h1>
           <div className="min-h-[3rem] mt-4">
             <h2 className={`text-2xl md:text-3xl lg:text-4xl font-semibold text-shadow transition-opacity duration-1000 ${fade ? 'opacity-100' : 'opacity-0'}`}>
