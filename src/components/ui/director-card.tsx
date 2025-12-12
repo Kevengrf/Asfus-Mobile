@@ -1,23 +1,41 @@
 import Image from 'next/image';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Mail, Phone } from 'lucide-react';
 
 interface DirectorCardProps {
-  imageUrl: string;
   name: string;
+  title: string;
+  email: string;
+  phone: string;
+  imageSrc: string;
 }
 
-export function DirectorCard({ imageUrl, name }: DirectorCardProps) {
+export function DirectorCard({ name, title, email, phone, imageSrc }: DirectorCardProps) {
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-lg">
-      <Image
-        src={imageUrl}
-        alt={name}
-        layout="fill"
-        objectFit="cover"
-        className="block"
-      />
-      <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/70 to-transparent">
-        <span className="text-lg font-bold text-white text-shadow-md">{name}</span>
-      </div>
-    </div>
+    <Card className="w-full max-w-sm">
+      <CardHeader className="flex flex-col items-center text-center">
+        <Image
+          src={imageSrc}
+          alt={`Foto de ${name}`}
+          width={128}
+          height={128}
+          className="rounded-full mb-4"
+        />
+        <CardTitle>{name}</CardTitle>
+        <p className="text-sm text-muted-foreground">{title}</p>
+      </CardHeader>
+      <CardContent className="text-center">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Mail className="h-4 w-4" />
+          <a href={`mailto:${email}`} className="text-sm hover:underline">
+            {email}
+          </a>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+          <Phone className="h-4 w-4" />
+          <span className="text-sm">{phone}</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
