@@ -28,11 +28,20 @@ export default function RegisterPage() {
 
       const form = event.currentTarget;
       const formData = new FormData(form);
-      const nome_completo = formData.get("full-name") as string;
+      const nome_completo = formData.get("nome") as string; // Changed from full-name
       const cpf = formData.get("cpf") as string;
+      const codtipo = formData.get("codtipo") as string;
+      const chapa = formData.get("chapa") as string;
+      const dt_nasc = formData.get("dt_nasc") as string;
+      const sexo = formData.get("sexo") as string;
+      const telefone1 = formData.get("telefone1") as string;
       const email = formData.get("email") as string;
       const password = formData.get("password") as string;
       const confirmPassword = formData.get("confirm-password") as string;
+      const nome_dependente = formData.get("nome_dependente") as string;
+      const sexo_dependente = formData.get("sexo_dependente") as string;
+      const grauparentesco_dependente = formData.get("grauparentesco_dependente") as string;
+      const data_nascimento_dependente = formData.get("data_nascimento_dependente") as string;
 
       if (password !== confirmPassword) {
         setError("As senhas não coincidem.");
@@ -49,6 +58,15 @@ export default function RegisterPage() {
             data: {
                 nome_completo,
                 cpf,
+                codtipo,
+                chapa,
+                dt_nasc,
+                sexo,
+                telefone1,
+                nome_dependente,
+                sexo_dependente,
+                grauparentesco_dependente,
+                data_nascimento_dependente,
             }
         }
       });
@@ -91,12 +109,37 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit}>
             <CardContent className="grid gap-4">
                 <div className="grid gap-2">
-                    <Label htmlFor="full-name">Nome Completo</Label>
-                    <Input id="full-name" name="full-name" placeholder="Seu nome completo" required />
+                    <Label htmlFor="nome">Nome Completo</Label>
+                    <Input id="nome" name="nome" placeholder="Seu nome completo" required />
                 </div>
                 <div className="grid gap-2">
                     <Label htmlFor="cpf">CPF</Label>
                     <Input id="cpf" name="cpf" placeholder="000.000.000-00" required />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="codtipo">Código do Tipo</Label>
+                    <Input id="codtipo" name="codtipo" placeholder="Código do Tipo" required />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="chapa">Chapa</Label>
+                    <Input id="chapa" name="chapa" placeholder="Número da Chapa" required />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="dt_nasc">Data de Nascimento</Label>
+                    <Input id="dt_nasc" name="dt_nasc" type="date" required />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="sexo">Sexo</Label>
+                    <select id="sexo" name="sexo" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" required>
+                        <option value="">Selecione</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Feminino">Feminino</option>
+                        <option value="Outro">Outro</option>
+                    </select>
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="telefone1">Telefone</Label>
+                    <Input id="telefone1" name="telefone1" placeholder="(XX) XXXXX-XXXX" required />
                 </div>
                 <div className="grid gap-2">
                     <Label htmlFor="email">Email</Label>
@@ -109,6 +152,33 @@ export default function RegisterPage() {
                  <div className="grid gap-2">
                     <Label htmlFor="confirm-password">Confirmar Senha</Label>
                     <Input id="confirm-password" name="confirm-password" type="password" required />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="nome_dependente">Nome do Dependente</Label>
+                    <Input id="nome_dependente" name="nome_dependente" placeholder="Nome completo do dependente" />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="sexo_dependente">Sexo do Dependente</Label>
+                    <select id="sexo_dependente" name="sexo_dependente" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                        <option value="">Selecione</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Feminino">Feminino</option>
+                        <option value="Outro">Outro</option>
+                    </select>
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="grauparentesco_dependente">Grau de Parentesco do Dependente</Label>
+                    <select id="grauparentesco_dependente" name="grauparentesco_dependente" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                        <option value="">Selecione</option>
+                        <option value="Filho(a)">Filho(a)</option>
+                        <option value="Cônjuge">Cônjuge</option>
+                        <option value="Pai/Mãe">Pai/Mãe</option>
+                        <option value="Outro">Outro</option>
+                    </select>
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="data_nascimento_dependente">Data de Nascimento do Dependente</Label>
+                    <Input id="data_nascimento_dependente" name="data_nascimento_dependente" type="date" />
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
             </CardContent>

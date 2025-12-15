@@ -13,7 +13,7 @@ const directors = [
     title: "Vice-Presidente",
     email: "ricarte@suape.pe.gov.br",
     phone: "(81) 99664-8140 – 99488 4771",
-    imageSrc: "/leadership/Pedro.jpg", // Placeholder, assuming the user will replace with actual image.
+    imageSrc: "/leadership/ricarte.png", // Updated image source
   },
   {
     name: "Taneha Thais dos Santos Fidélis",
