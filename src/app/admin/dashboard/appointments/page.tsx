@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import Papa from "papaparse";
 import {
   Table,
@@ -19,7 +20,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 
 type Appointment = {
   id: number;
-  booking_date: string;
+  start_date: string;
+  end_date: string;
+  type: 'lazer' | 'casa';
+  house_number: number | null;
   status: 'pendente' | 'aprovado' | 'rejeitado';
   profiles: {
     nome_completo: string;
@@ -33,12 +37,21 @@ export default function AdminAppointmentsPage() {
 
   const fetchAppointments = React.useCallback(async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from("appointments")
-      .select(`id, booking_date, status, profiles (nome_completo, email)`)
-      .order('created_at', { ascending: false });
-    if (data) setAppointments(data as unknown as Appointment[]);
-    setIsLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(`id, start_date, end_date, type, house_number, status, profiles (nome_completo, email)`)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (data) setAppointments(data as unknown as Appointment[]);
+
+    } catch (error: any) {
+        alert(`Erro ao buscar agendamentos: ${error.message}`);
+    } finally {
+        setIsLoading(false);
+    }
   }, []);
 
   React.useEffect(() => {
@@ -47,20 +60,24 @@ export default function AdminAppointmentsPage() {
 
   const handleUpdateStatus = async (id: number, status: 'aprovado' | 'rejeitado') => {
     const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
-    if (!error) setAppointments(prev => prev.map(app => app.id === id ? { ...app, status } : app));
-    else alert("Erro ao atualizar o agendamento.");
+    if (!error) {
+      setAppointments(prev => prev.map(app => app.id === id ? { ...app, status } : app));
+    } else {
+      alert("Erro ao atualizar o agendamento.");
+    }
   };
 
   const handleExport = () => {
     const dataToExport = appointments.map(app => ({
         "Nome do Associado": app.profiles?.nome_completo || "N/A",
         "Email": app.profiles?.email || "N/A",
-        "Data do Agendamento": format(new Date(app.booking_date), "dd/MM/yyyy"),
+        "Período": `${app.start_date ? format(new Date(app.start_date), "dd/MM/yyyy") : ''} - ${app.end_date ? format(new Date(app.end_date), "dd/MM/yyyy") : ''}`,
+        "Tipo de Uso": app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer',
         "Status": app.status,
     }));
 
     const csv = Papa.unparse(dataToExport);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -76,7 +93,7 @@ export default function AdminAppointmentsPage() {
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
             <CardTitle>Gerenciamento de Agendamentos</CardTitle>
-            <CardDescription>Aprove, rejeite e exporte as solicitações.</CardDescription>
+            <CardDescription>Aprove, rejeite e exporte as solicitações de reserva.</CardDescription>
         </div>
         <Button onClick={handleExport} disabled={appointments.length === 0}>
             <Download className="mr-2 h-4 w-4"/>
@@ -84,7 +101,6 @@ export default function AdminAppointmentsPage() {
         </Button>
       </CardHeader>
       <CardContent>
-        {/* ... (código da tabela permanece o mesmo) ... */}
         {isLoading ? (
           <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin"/></div>
         ) : (
@@ -92,7 +108,8 @@ export default function AdminAppointmentsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Associado</TableHead>
-                <TableHead>Data Solicitada</TableHead>
+                <TableHead>Período Solicitado</TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -105,7 +122,8 @@ export default function AdminAppointmentsPage() {
                       {app.profiles?.nome_completo || 'N/A'}
                       <div className="text-sm text-muted-foreground">{app.profiles?.email}</div>
                     </TableCell>
-                    <TableCell>{format(new Date(app.booking_date), "PPP")}</TableCell>
+                    <TableCell>{app.start_date && app.end_date ? `${format(new Date(app.start_date), "dd/MM/yy", { locale: ptBR })} - ${format(new Date(app.end_date), "dd/MM/yy", { locale: ptBR })}` : 'N/A'}</TableCell>
+                    <TableCell className="capitalize">{app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer'}</TableCell>
                     <TableCell>
                       <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')}
                              className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
@@ -124,7 +142,7 @@ export default function AdminAppointmentsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     Nenhum agendamento encontrado.
                   </TableCell>
                 </TableRow>

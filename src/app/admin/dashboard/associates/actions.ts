@@ -19,27 +19,61 @@ export async function addAssociate(formData: FormData) {
     return { error: 'Campos obrigatórios estão faltando.' };
   }
 
-  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+  // 1. Create user in auth.users
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
-    user_metadata: {
-      nome_completo,
-      cpf,
-      codtipo,
-      chapa,
-      dt_nasc,
-      sexo,
-      telefone1,
-      role: 'user',
-      status: 'ativo'
-    },
   });
 
-  if (error) {
-    return { error: error.message };
+  if (authError) {
+    return { error: authError.message };
+  }
+  const user = authData.user;
+  
+  // 2. Update the profile that was created by the trigger
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .update({ 
+        role: 'user', 
+        status: 'ativo',
+        nome_completo,
+        cpf,
+        email,
+        telefone: telefone1,
+        codtipo,
+        chapa,
+        dt_nasc,
+        sexo
+    })
+    .eq('id', user.id);
+
+  if (profileError) {
+    // If updating profile fails, delete the created auth user for consistency
+    await supabaseAdmin.auth.admin.deleteUser(user.id);
+    return { error: `Falha ao atualizar o perfil do associado: ${profileError.message}` };
   }
 
   revalidatePath('/admin/dashboard/associates');
-  return { data };
+  return { data: { user } };
+}
+
+export async function promoteToAdmin(userId: string) {
+  if (!userId) {
+    return { error: 'ID do usuário é obrigatório.' };
+  }
+
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ role: 'admin' })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Erro ao promover para admin:', error.message);
+    return { error: `Erro ao promover usuário: ${error.message}` };
+  }
+
+  revalidatePath('/admin/dashboard/associates');
+  revalidatePath('/admin/dashboard/admins');
+  return { message: 'Usuário promovido a administrador com sucesso!' };
 }
