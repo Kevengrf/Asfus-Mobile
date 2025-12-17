@@ -1,14 +1,15 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase/client";
 import { Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"; // Import DialogTitle
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 type GalleryImage = {
     id: number;
-    image_url: string; // Changed from 'url' to 'image_url'
+    image_url: string;
     caption: string | null;
 };
 
@@ -21,7 +22,7 @@ export default function GalleryPage() {
     React.useEffect(() => {
         const fetchImages = async () => {
             setIsLoading(true);
-            const { data } = await supabase.from('gallery').select('id, image_url, caption').order('created_at', { ascending: false }); // Select specific columns
+            const { data } = await supabase.from('gallery').select('id, image_url, caption').order('created_at', { ascending: false });
             if (data) setImages(data);
             setIsLoading(false);
         };
@@ -53,23 +54,25 @@ export default function GalleryPage() {
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                     {images.map((image, index) => (
-                        <div key={image.id} onClick={() => openLightbox(index)} className="aspect-square cursor-pointer overflow-hidden rounded-lg">
-                            <img src={image.image_url} alt={image.caption || 'Imagem da galeria'} className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" /> {/* Changed from image.url */}
+                        <div key={image.id} onClick={() => openLightbox(index)} className="aspect-square cursor-pointer overflow-hidden rounded-lg relative group">
+                            <Image src={image.image_url} alt={image.caption || 'Imagem da galeria'} layout="fill" className="object-cover transition-transform duration-300 group-hover:scale-105" />
                         </div>
                     ))}
                 </div>
             )}
             
-            {/* Lightbox Dialog */}
             <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
                 <DialogContent className="max-w-4xl max-h-[90vh] p-0 bg-transparent border-none flex items-center justify-center">
-                    <DialogTitle className="sr-only">Visualização de Imagem da Galeria</DialogTitle> {/* Added DialogTitle */}
+                    <DialogTitle className="sr-only">Visualização de Imagem da Galeria</DialogTitle>
                     {images.length > 0 && (
-                        <div className="relative w-full h-full">
-                            <img src={images[selectedImageIndex].image_url} alt={images[selectedImageIndex].caption || ''} className="max-w-full max-h-[80vh] object-contain mx-auto" /> {/* Changed from images[selectedImageIndex].url */}
-                            <p className="text-white text-center mt-2 bg-black/50 p-2 rounded-b-lg">{images[selectedImageIndex].caption}</p>
+                        <div className="relative w-full h-full flex flex-col items-center justify-center">
+                            <div className="relative w-[90vw] h-[80vh]">
+                                <Image src={images[selectedImageIndex].image_url} alt={images[selectedImageIndex].caption || ''} layout="fill" objectFit="contain" />
+                            </div>
+                            {images[selectedImageIndex].caption && (
+                                <p className="text-white text-center mt-2 bg-black/50 p-2 rounded-b-lg">{images[selectedImageIndex].caption}</p>
+                            )}
                             
-                            {/* Navigation Buttons */}
                             {images.length > 1 && (
                                 <>
                                     <Button onClick={goToPrevious} variant="outline" size="icon" className="absolute left-2 top-1/2 -translate-y-1/2">

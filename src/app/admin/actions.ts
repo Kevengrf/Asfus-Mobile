@@ -2,7 +2,9 @@
 'use server';
 
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server'; // Import server client
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 // Tipagem para o estado do formulário, usado pelo useFormState
 export interface FormState {
@@ -95,20 +97,15 @@ export async function createAdminUser(
 }
 
 export async function getAdmins() {
-    console.log("--- Iniciando getAdmins ---");
-
     const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (usersError) {
         console.error('Erro ao buscar usuários do Auth:', usersError.message);
         return [];
     }
-    console.log(`Encontrados ${users.length} usuários no Auth.`);
-    // console.log("Usuários do Auth:", users.map(u => ({ id: u.id, email: u.email })));
 
     const userIds = users.map(u => u.id);
     if (userIds.length === 0) {
-        console.log("Nenhum usuário no Auth, retornando lista vazia.");
         return [];
     }
 
@@ -122,25 +119,20 @@ export async function getAdmins() {
         console.error('Erro ao buscar perfis de admin:', profilesError.message);
         return [];
     }
-    console.log(`Encontrados ${profiles.length} perfis com role='admin'.`);
-    console.log("Perfis de Admin:", profiles);
     
-    const profilesMap = new Map(profiles.map(p => [p.id, p]));
+    const profilesMap = new Map(profiles.map((p: { id: string }) => [p.id, p]));
     
     const finalAdmins = users
         .map(user => {
             const profile = profilesMap.get(user.id);
-            if (!profile) return null; // Ignora usuários que não estão no mapa de perfis de admin
+            if (!profile) return null;
             
             return {
                 ...user,
                 ...profile
             };
         })
-        .filter(userOrNull => userOrNull !== null && userOrNull.role === 'admin');
-
-    console.log(`Retornando ${finalAdmins.length} administradores após o merge.`);
-    console.log("--- Finalizando getAdmins ---");
+        .filter(userOrNull => userOrNull !== null);
 
     return finalAdmins;
 }
@@ -155,4 +147,11 @@ export async function deleteAdmin(userId: string) {
     
     revalidatePath('/admin/dashboard/admins');
     return { message: 'Admin deletado com sucesso.' };
+}
+
+export async function logout() {
+  const supabase = createClient(); // Server client
+  await supabase.auth.signOut();
+  revalidatePath('/', 'layout'); // Revalidate all layouts
+  redirect('/login'); // Redirect to login page
 }

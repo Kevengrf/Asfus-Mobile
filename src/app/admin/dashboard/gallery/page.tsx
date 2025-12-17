@@ -2,6 +2,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { supabase, deleteGallery } from "@/lib/supabase/client";
 import { 
     Card, 
@@ -173,7 +174,7 @@ export default function AdminGalleryPage() {
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                 {currentImages.map(image => (
                                     <div key={image.id} className="relative aspect-square group">
-                                        <img src={image.image_url} alt={image.caption || 'Imagem da galeria'} className="w-full h-full object-cover rounded-md" />
+                                        <Image src={image.image_url} alt={image.caption || 'Imagem da galeria'} layout="fill" className="object-cover rounded-md" />
                                         <Button
                                             variant="destructive"
                                             size="icon"

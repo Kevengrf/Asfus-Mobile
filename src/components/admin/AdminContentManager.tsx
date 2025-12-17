@@ -34,11 +34,7 @@ export function AdminContentManager<T extends { id: number; title?: string; name
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10; // Or make this a prop
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
-  const fetchItems = async () => {
+  const fetchItems = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -49,8 +45,12 @@ export function AdminContentManager<T extends { id: number; title?: string; name
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchFunction, contentType]);
 
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (e.target.type === 'file') {
       setSelectedFile((e.target as HTMLInputElement).files?.[0] || null);

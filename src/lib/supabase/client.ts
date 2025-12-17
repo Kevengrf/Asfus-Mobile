@@ -8,32 +8,6 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 // Cria e exporta o cliente Supabase para ser usado no lado do navegador
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export async function getUserAppointments(userId: string) {
-  const { data, error } = await supabase
-    .from('appointments')
-    .select('booking_date, status')
-    .eq('user_id', userId);
-
-  if (error) {
-    console.error('Error fetching user appointments:', error);
-    return [];
-  }
-  return data;
-}
-
-export async function getUnavailableDates() {
-  const { data, error } = await supabase
-    .from('appointments')
-    .select('booking_date')
-    .neq('status', 'rejeitado'); // Include 'pendente' and 'aprovado'
-
-  if (error) {
-    console.error('Error fetching unavailable dates:', error);
-    return [];
-  }
-  return data.map(item => item.booking_date);
-}
-
 // --- News Functions ---
 export async function getAllNews() {
   const { data, error } = await supabase
