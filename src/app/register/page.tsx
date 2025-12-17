@@ -98,8 +98,8 @@ export default function RegisterPage() {
     }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-2 sm:p-4">
+      <Card className="w-full max-w-xs sm:max-w-sm md:max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Solicitação de Cadastro</CardTitle>
           <CardDescription>
@@ -183,7 +183,7 @@ export default function RegisterPage() {
                 {error && <p className="text-sm text-red-500">{error}</p>}
             </CardContent>
             <CardFooter className="flex flex-col items-center gap-4">
-                <Button className="w-full" type="submit" disabled={isLoading}>
+                <Button className="w-full" type="submit" disabled={isLoading} variant="success">
                     {isLoading && (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}

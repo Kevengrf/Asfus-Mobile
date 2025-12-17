@@ -8,13 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface AdminContentManagerProps<T> {
-  contentType: 'news' | 'partners' | 'events';
+  contentType: string;
   fetchFunction: () => Promise<T[]>;
   createFunction: (data: any) => Promise<T>;
   deleteFunction: (id: number) => Promise<void>;
-  uploadImageFunction?: (file: File, bucketName?: string) => Promise<string>; // New prop for image upload
-  fields: { name: string; label: string; type: string; required?: boolean; options?: { value: string; label: string }[] }[];
-  // Specific fields for display in the table
+  uploadImageFunction?: (file: File, bucketName?: string) => Promise<string>;
+  fields: { name: string; label: string; type: string; required?: boolean; placeholder?: string; options?: { value: string; label: string }[] }[];
   displayFields: { key: string; label: string }[];
 }
 
@@ -23,15 +22,17 @@ export function AdminContentManager<T extends { id: number; title?: string; name
   fetchFunction,
   createFunction,
   deleteFunction,
-  uploadImageFunction, // Destructure new prop
+  uploadImageFunction,
   fields,
   displayFields,
 }: AdminContentManagerProps<T>) {
   const [items, setItems] = useState<T[]>([]);
   const [formState, setFormState] = useState<any>({});
-  const [selectedFile, setSelectedFile] = useState<File | null>(null); // New state for file
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // Or make this a prop
 
   useEffect(() => {
     fetchItems();
@@ -44,7 +45,7 @@ export function AdminContentManager<T extends { id: number; title?: string; name
       const data = await fetchFunction();
       setItems(data);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch items');
+      setError(err.message || `Falha ao buscar ${contentType}`);
     } finally {
       setLoading(false);
     }
@@ -60,46 +61,68 @@ export function AdminContentManager<T extends { id: number; title?: string; name
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    for (const field of fields) {
+        if (field.required && !formState[field.name] && field.type !== 'image') {
+            setError(`O campo "${field.label}" é obrigatório.`);
+            return;
+        }
+        if (field.required && field.type === 'image' && !selectedFile) {
+            setError(`O campo "${field.label}" é obrigatório.`);
+            return;
+        }
+    }
+
     setLoading(true);
     setError(null);
+
     try {
-      let imageUrl: string | undefined = formState.image_url; // Keep existing image_url if not uploading new one
+      let imageUrl: string | undefined = formState.image_url;
 
       if (selectedFile && uploadImageFunction) {
-        imageUrl = await uploadImageFunction(selectedFile, 'content-images'); // Assuming 'content-images' bucket
+        imageUrl = await uploadImageFunction(selectedFile, 'content-images');
       }
 
       const dataToCreate = { ...formState, image_url: imageUrl };
       await createFunction(dataToCreate);
-      setFormState({}); // Clear form
-      setSelectedFile(null); // Clear selected file
-      await fetchItems(); // Refresh list
+      setFormState({});
+      setSelectedFile(null);
+      const fileInput = document.getElementById('image_url-input') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+
+      await fetchItems();
     } catch (err: any) {
-      setError(err.message || 'Failed to create item');
+      setError(err.message || `Falha ao criar ${contentType.slice(0, -1)}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this item?')) return;
+    if (!confirm('Tem certeza que deseja deletar este item?')) return;
     setLoading(true);
     setError(null);
     try {
       await deleteFunction(id);
-      await fetchItems(); // Refresh list
+      await fetchItems();
     } catch (err: any) {
-      setError(err.message || 'Failed to delete item');
+      setError(err.message || 'Falha ao deletar item');
     } finally {
       setLoading(false);
     }
   };
+  
+  // Pagination logic
+  const lastItemIndex = currentPage * itemsPerPage;
+  const firstItemIndex = lastItemIndex - itemsPerPage;
+  const currentItems = items.slice(firstItemIndex, lastItemIndex);
+  const totalPages = Math.ceil(items.length / itemsPerPage);
 
   return (
     <div className="container mx-auto p-4">
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="capitalize">Add New {contentType.slice(0, -1)}</CardTitle>
+          <CardTitle>Adicionar Novo {contentType.slice(0, -1)}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -113,6 +136,7 @@ export function AdminContentManager<T extends { id: number; title?: string; name
                     value={formState[field.name] || ''}
                     onChange={handleChange}
                     required={field.required}
+                    placeholder={field.placeholder}
                     className="flex h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 ) : field.type === 'select' ? (
@@ -124,14 +148,14 @@ export function AdminContentManager<T extends { id: number; title?: string; name
                     required={field.required}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <option value="">Select a {field.label}</option>
+                    <option value="">Selecione um {field.label}</option>
                     {field.options?.map(option => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                ) : field.type === 'image' ? ( // Handle image type
+                ) : field.type === 'image' ? (
                   <Input
-                    id={field.name}
+                    id={`${field.name}-input`}
                     name={field.name}
                     type="file"
                     onChange={handleChange}
@@ -145,13 +169,14 @@ export function AdminContentManager<T extends { id: number; title?: string; name
                     value={formState[field.name] || ''}
                     onChange={handleChange}
                     required={field.required}
+                    placeholder={field.placeholder}
                   />
                 )}
               </div>
             ))}
             <div className="md:col-span-2">
               <Button type="submit" disabled={loading}>
-                {loading ? 'Adding...' : 'Add'} {contentType.slice(0, -1)}
+                {loading ? 'Adicionando...' : `Adicionar ${contentType.slice(0, -1)}`}
               </Button>
             </div>
             {error && <p className="text-red-500 mt-2 md:col-span-2">{error}</p>}
@@ -161,47 +186,66 @@ export function AdminContentManager<T extends { id: number; title?: string; name
 
       <Card>
         <CardHeader>
-          <CardTitle className="capitalize">Manage {contentType}</CardTitle>
+          <CardTitle>Gerenciar {contentType}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading && items.length === 0 ? (
-            <p>Loading {contentType}...</p>
+            <p>Carregando {contentType}...</p>
           ) : items.length === 0 ? (
-            <p>No {contentType} found.</p>
+            <p>Nenhum(a) {contentType.toLowerCase()} encontrado(a).</p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {displayFields.map((field) => (
-                      <TableHead key={field.key}>{field.label}</TableHead>
-                    ))}
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
                       {displayFields.map((field) => (
-                        <TableCell key={field.key}>
-                            {/* @ts-ignore */}
-                            {item[field.key] instanceof Date ? item[field.key].toLocaleDateString() : item[field.key]}
-                        </TableCell>
+                        <TableHead key={field.key}>{field.label}</TableHead>
                       ))}
-                      <TableCell className="text-right">
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleDelete(item.id)}
-                          disabled={loading}
-                        >
-                          Delete
-                        </Button>
-                      </TableCell>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {currentItems.map((item) => (
+                      <TableRow key={item.id}>
+                        {displayFields.map((field) => (
+                          <TableCell key={field.key}>
+                              {/* @ts-ignore */}
+                              {item[field.key] instanceof Date ? item[field.key].toLocaleDateString() : String(item[field.key] ?? '')}
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-right">
+                          <Button
+                            variant="destructive"
+                            onClick={() => handleDelete(item.id)}
+                            disabled={loading}
+                          >
+                            Deletar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex justify-end items-center gap-4 mt-4">
+                <span>Página {currentPage} de {totalPages}</span>
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Próxima
+                </Button>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

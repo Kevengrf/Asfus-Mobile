@@ -2,11 +2,25 @@
 "use client";
 
 import * as React from "react";
-import { supabase, deleteGallery } from "@/lib/supabase/client"; // Import deleteGallery
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase, deleteGallery } from "@/lib/supabase/client";
+import { 
+    Card, 
+    CardContent, 
+    CardHeader, 
+    CardTitle 
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, Trash2 } from "lucide-react"; // Import Trash2 icon
+import { 
+    Dialog, 
+    DialogContent, 
+    DialogHeader, 
+    DialogTitle, 
+    DialogTrigger,
+    DialogFooter,
+    DialogClose
+} from "@/components/ui/dialog";
+import { Loader2, Upload, Trash2, PlusCircle } from "lucide-react";
 
 type GalleryImage = {
     id: number;
@@ -19,9 +33,11 @@ export default function AdminGalleryPage() {
     const [isLoading, setIsLoading] = React.useState(true);
     const [isUploading, setIsUploading] = React.useState(false);
     const [uploadError, setUploadError] = React.useState<string | null>(null);
+    const [isModalOpen, setIsModalOpen] = React.useState(false);
+    const [currentPage, setCurrentPage] = React.useState(1);
+    const itemsPerPage = 12; // Adjust as needed
 
-    // Busca imagens existentes
-    const fetchImages = React.useCallback(async () => { // Use useCallback for fetchImages
+    const fetchImages = React.useCallback(async () => {
         setIsLoading(true);
         const { data, error } = await supabase.from('gallery').select('id, image_url, caption').order('created_at', { ascending: false });
         if (error) {
@@ -45,38 +61,31 @@ export default function AdminGalleryPage() {
         const form = event.currentTarget;
         const fileInput = form.elements.namedItem('imageFile') as HTMLInputElement;
         const captionInput = form.elements.namedItem('caption') as HTMLInputElement;
-
         const file = fileInput.files?.[0];
+
         if (!file) {
             setUploadError("Por favor, selecione um arquivo.");
             setIsUploading(false);
             return;
         }
 
-        // 1. Upload para o Supabase Storage
         const filePath = `gallery/${Date.now()}_${file.name}`;
-        const { error: uploadErrorStorage } = await supabase.storage // Renamed error variable
-            .from('galeria') // Nome do seu bucket PÚBLICO
-            .upload(filePath, file);
+        const { error: uploadErrorStorage } = await supabase.storage.from('galeria').upload(filePath, file);
         
-        if (uploadErrorStorage) { // Use renamed error variable
+        if (uploadErrorStorage) {
             setUploadError(`Erro no upload: ${uploadErrorStorage.message}`);
             setIsUploading(false);
             return;
         }
 
-        // 2. Obter a URL pública da imagem
-        const { data: publicUrlData } = supabase.storage
-            .from('galeria')
-            .getPublicUrl(filePath);
+        const { data: publicUrlData } = supabase.storage.from('galeria').getPublicUrl(filePath);
 
-        if (!publicUrlData || !publicUrlData.publicUrl) { // Added check for publicUrlData.publicUrl
+        if (!publicUrlData || !publicUrlData.publicUrl) {
             setUploadError("Não foi possível obter a URL pública da imagem.");
             setIsUploading(false);
             return;
         }
 
-        // 3. Salvar a URL e legenda na tabela 'gallery'
         const { data: newImage, error: dbError } = await supabase
             .from('gallery')
             .insert({ image_url: publicUrlData.publicUrl, caption: captionInput.value || null })
@@ -85,34 +94,27 @@ export default function AdminGalleryPage() {
 
         if (dbError) {
             setUploadError(`Erro ao salvar no banco: ${dbError.message}`);
-            // Optionally, delete the uploaded file from storage if DB insert fails
             await supabase.storage.from('galeria').remove([filePath]);
         } else if (newImage) {
             setImages(prev => [newImage, ...prev]);
             form.reset();
+            setIsModalOpen(false);
         }
 
         setIsUploading(false);
     };
 
     const handleDelete = async (id: number, imageUrl: string) => {
-        if (!confirm('Tem certeza que deseja remover esta imagem da galeria?')) {
-            return;
-        }
+        if (!confirm('Tem certeza que deseja remover esta imagem da galeria?')) return;
+        
         setIsLoading(true);
         try {
-            // 1. Deletar do Storage
-            const filePath = imageUrl.split('galeria/').pop(); // Extract file path from URL
+            const filePath = imageUrl.split('galeria/').pop();
             if (filePath) {
-                const { error: storageError } = await supabase.storage
-                    .from('galeria')
-                    .remove([`gallery/${filePath}`]); // Ensure correct path for removal
-                if (storageError) throw storageError;
+                await supabase.storage.from('galeria').remove([`gallery/${filePath}`]);
             }
-
-            // 2. Deletar do Banco de Dados
             await deleteGallery(id);
-            await fetchImages(); // Refresh the list
+            await fetchImages();
         } catch (err: any) {
             console.error('Erro ao deletar imagem:', err);
             setUploadError(`Erro ao deletar imagem: ${err.message}`);
@@ -121,46 +123,87 @@ export default function AdminGalleryPage() {
         }
     };
 
+    // Pagination logic
+    const lastItemIndex = currentPage * itemsPerPage;
+    const firstItemIndex = lastItemIndex - itemsPerPage;
+    const currentImages = images.slice(firstItemIndex, lastItemIndex);
+    const totalPages = Math.ceil(images.length / itemsPerPage);
+
     return (
         <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Gerenciamento da Galeria</CardTitle>
-                    <CardDescription>Envie novas fotos para a galeria pública do site.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleUpload} className="space-y-4">
-                        <Input id="imageFile" type="file" accept="image/*" required />
-                        <Input id="caption" type="text" placeholder="Legenda da foto (opcional)" />
-                        <Button type="submit" disabled={isUploading}>
-                            {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
-                            Enviar Imagem
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold">Gerenciamento da Galeria</h1>
+                    <p className="text-muted-foreground">Envie e gerencie as fotos da galeria pública do site.</p>
+                </div>
+                <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Adicionar Imagem
                         </Button>
-                        {uploadError && <p className="text-sm text-red-500">{uploadError}</p>}
-                    </form>
-                </CardContent>
-            </Card>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Enviar Nova Imagem</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleUpload} className="space-y-4">
+                            <Input id="imageFile" type="file" accept="image/*" required />
+                            <Input id="caption" type="text" placeholder="Legenda da foto (opcional)" />
+                            {uploadError && <p className="text-sm text-red-500">{uploadError}</p>}
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button type="button" variant="secondary">Cancelar</Button>
+                                </DialogClose>
+                                <Button type="submit" disabled={isUploading}>
+                                    {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
+                                    Enviar
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+            </div>
 
             <Card>
                 <CardHeader><CardTitle>Imagens Atuais</CardTitle></CardHeader>
                 <CardContent>
-                    {isLoading ? <Loader2 className="h-8 w-8 animate-spin"/> : (
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {images.map(image => (
-                                <div key={image.id} className="relative aspect-square group"> {/* Added group for styling */}
-                                    <img src={image.image_url} alt={image.caption || 'Imagem da galeria'} className="w-full h-full object-cover rounded-md" />
-                                    <Button
-                                        variant="destructive"
-                                        size="icon"
-                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                        onClick={() => handleDelete(image.id, image.image_url)}
-                                        disabled={isLoading}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
+                    {isLoading ? <Loader2 className="h-8 w-8 animate-spin mx-auto"/> : (
+                        <>
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                {currentImages.map(image => (
+                                    <div key={image.id} className="relative aspect-square group">
+                                        <img src={image.image_url} alt={image.caption || 'Imagem da galeria'} className="w-full h-full object-cover rounded-md" />
+                                        <Button
+                                            variant="destructive"
+                                            size="icon"
+                                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={() => handleDelete(image.id, image.image_url)}
+                                            disabled={isLoading}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                             <div className="flex justify-end items-center gap-4 mt-4">
+                                <span>Página {currentPage} de {totalPages}</span>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    Anterior
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages || totalPages === 0}
+                                >
+                                    Próxima
+                                </Button>
+                            </div>
+                        </>
                     )}
                 </CardContent>
             </Card>

@@ -14,7 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase/client";
-import { Loader2, UserPlus } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { AddAssociateModal } from "@/components/admin/AddAssociateModal";
 
 type Profile = {
     id: string;
@@ -30,19 +31,22 @@ export default function AssociatesPage() {
   const [filteredProfiles, setFilteredProfiles] = React.useState<Profile[]>([]);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(true);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
+
+  const fetchProfiles = React.useCallback(async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase.from("profiles").select("*");
+    if (data) {
+      setAllProfiles(data);
+      setFilteredProfiles(data);
+    }
+    setIsLoading(false);
+  }, []);
 
   React.useEffect(() => {
-    const fetchProfiles = async () => {
-      setIsLoading(true);
-      const { data, error } = await supabase.from("profiles").select("*");
-      if (data) {
-        setAllProfiles(data);
-        setFilteredProfiles(data);
-      }
-      setIsLoading(false);
-    };
     fetchProfiles();
-  }, []);
+  }, [fetchProfiles]);
 
   React.useEffect(() => {
     const lowercasedQuery = searchQuery.toLowerCase();
@@ -54,16 +58,20 @@ export default function AssociatesPage() {
       );
     });
     setFilteredProfiles(filtered);
+    setCurrentPage(1); // Reset to first page on search
   }, [searchQuery, allProfiles]);
+
+  // Pagination logic
+  const lastItemIndex = currentPage * itemsPerPage;
+  const firstItemIndex = lastItemIndex - itemsPerPage;
+  const currentProfiles = filteredProfiles.slice(firstItemIndex, lastItemIndex);
+  const totalPages = Math.ceil(filteredProfiles.length / itemsPerPage);
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gerenciamento de Associados</h1>
-        <Button>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Adicionar Associado
-        </Button>
+        <AddAssociateModal onAssociateAdded={fetchProfiles} />
       </div>
 
       <div>
@@ -81,41 +89,60 @@ export default function AssociatesPage() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome Completo</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Matrícula</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProfiles.length > 0 ? (
-                filteredProfiles.map((profile) => (
-                  <TableRow key={profile.id}>
-                    <TableCell className="font-medium">{profile.nome_completo}</TableCell>
-                    <TableCell>{profile.email}</TableCell>
-                    <TableCell>{profile.matricula || "N/A"}</TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={profile.status === 'ativo' ? 'default' : (profile.status === 'pendente' ? 'secondary' : 'destructive')}
-                        className={profile.status === 'ativo' ? 'bg-green-600' : ''}
-                      >
-                        {profile.status}
-                      </Badge>
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome Completo</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Matrícula</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentProfiles.length > 0 ? (
+                  currentProfiles.map((profile) => (
+                    <TableRow key={profile.id}>
+                      <TableCell className="font-medium">{profile.nome_completo}</TableCell>
+                      <TableCell>{profile.email}</TableCell>
+                      <TableCell>{profile.matricula || "N/A"}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={profile.status === 'ativo' ? 'default' : (profile.status === 'pendente' ? 'secondary' : 'destructive')}
+                          className={profile.status === 'ativo' ? 'bg-green-600' : ''}
+                        >
+                          {profile.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      Nenhum resultado encontrado.
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
-                    Nenhum resultado encontrado.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+            <div className="flex justify-end items-center gap-4 p-4">
+              <span>Página {currentPage} de {totalPages}</span>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages || totalPages === 0}
+              >
+                Próxima
+              </Button>
+            </div>
+          </>
         )}
       </div>
     </div>

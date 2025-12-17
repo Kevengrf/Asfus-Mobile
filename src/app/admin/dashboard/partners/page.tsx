@@ -13,27 +13,27 @@ interface Partner {
 
 export default function AdminPartnersPage() {
   const partnerFields = [
-    { name: 'name', label: 'Partner Name', type: 'text', required: true },
-    { name: 'category', label: 'Category', type: 'text' },
-    { name: 'benefit_desc', label: 'Benefit Description', type: 'textarea', required: true },
-    { name: 'logo_url', label: 'Logo', type: 'image' }, // Changed type to 'image'
+    { name: 'name', label: 'Nome do Convênio', type: 'text', required: true, placeholder: 'Ex: Colégio Saber' },
+    { name: 'category', label: 'Categoria', type: 'text', placeholder: 'Ex: Educação' },
+    { name: 'benefit_desc', label: 'Descrição do Benefício', type: 'textarea', required: true, placeholder: 'Ex: 15% de desconto nas mensalidades para associados e seus dependentes.' },
+    { name: 'logo_url', label: 'Logo', type: 'image' },
   ];
 
   const partnerDisplayFields = [
     { key: 'id', label: 'ID' },
-    { key: 'name', label: 'Name' },
-    { key: 'category', label: 'Category' },
-    { key: 'benefit_desc', label: 'Benefit' },
-    { key: 'logo_url', label: 'Logo URL' },
+    { key: 'name', label: 'Nome' },
+    { key: 'category', label: 'Categoria' },
+    { key: 'benefit_desc', label: 'Benefício' },
+    { key: 'logo_url', label: 'URL da Logo' },
   ];
 
   return (
     <AdminContentManager<Partner>
-      contentType="partners"
+      contentType="Convênios"
       fetchFunction={getAllPartners}
       createFunction={createPartner}
       deleteFunction={deletePartner}
-      uploadImageFunction={uploadImage} // Pass the uploadImage function
+      uploadImageFunction={uploadImage}
       fields={partnerFields}
       displayFields={partnerDisplayFields}
     />

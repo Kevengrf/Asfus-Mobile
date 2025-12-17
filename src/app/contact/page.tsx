@@ -34,7 +34,7 @@ const directors = [
     title: "Diretor Administrativo",
     email: "Girlene.silva@suape.pe.gov.br",
     phone: "(81) 99661-9658",
-    imageSrc: "/leadership/Pedro.jpg", // Placeholder, assuming the user will replace with actual image.
+    imageSrc: "/leadership/girlene.jpg", // Placeholder, assuming the user will replace with actual image.
   },
   {
     name: "José Ricardo Novaes de Lima",

@@ -14,23 +14,23 @@ interface News {
 
 export default function AdminNewsPage() {
   const newsFields = [
-    { name: 'title', label: 'Title', type: 'text', required: true },
-    { name: 'summary', label: 'Summary', type: 'textarea' },
-    { name: 'content_html', label: 'Content (HTML)', type: 'textarea', required: true },
-    { name: 'image_url', label: 'Image', type: 'image' }, // Changed type to 'image'
+    { name: 'title', label: 'Título', type: 'text', required: true, placeholder: 'Ex: Nova parceria com a Academia Corpo & Mente' },
+    { name: 'summary', label: 'Resumo', type: 'textarea', placeholder: 'Ex: A ASFUS fechou uma nova parceria que oferece 20% de desconto para associados.' },
+    { name: 'content_html', label: 'Conteúdo (HTML)', type: 'textarea', required: true, placeholder: 'Ex: <p>É com grande alegria que anunciamos nossa nova parceria com a <b>Academia Corpo & Mente</b>.</p>' },
+    { name: 'image_url', label: 'Imagem', type: 'image' },
   ];
 
   const newsDisplayFields = [
     { key: 'id', label: 'ID' },
-    { key: 'title', label: 'Title' },
-    { key: 'summary', label: 'Summary' },
-    { key: 'created_at', label: 'Created At' },
-    { key: 'image_url', label: 'Image URL' },
+    { key: 'title', label: 'Título' },
+    { key: 'summary', label: 'Resumo' },
+    { key: 'created_at', label: 'Criado em' },
+    { key: 'image_url', label: 'URL da Imagem' },
   ];
 
   return (
     <AdminContentManager<News>
-      contentType="news"
+      contentType="Notícias"
       fetchFunction={getAllNews}
       createFunction={createNews}
       deleteFunction={deleteNews}
