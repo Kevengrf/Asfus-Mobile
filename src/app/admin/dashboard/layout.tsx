@@ -15,6 +15,7 @@ import {
   CalendarCheck,
   Image, // Ícone para Galeria
   Shield, // Ícone para Admins
+  CalendarPlus, // Ícone para Fazer Agendamento
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -28,6 +29,7 @@ const navLinks = [
     { href: "/admin/dashboard/events", label: "Eventos", icon: Calendar },
     { href: "/admin/dashboard/associates", label: "Associados", icon: Users },
     { href: "/admin/dashboard/admins", label: "Admins", icon: Shield },
+    { href: "/admin/dashboard/fazer-agendamento", label: "Fazer Agendamento", icon: CalendarPlus },
 ];
 
 export default function DashboardLayout({

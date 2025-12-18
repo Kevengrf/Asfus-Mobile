@@ -162,6 +162,21 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
             return;
         }
 
+        // Fetch user's role to determine initial status
+        const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError || !profileData) {
+            setFormMessage({ type: 'error', text: 'Erro ao verificar o papel do usuário.' });
+            setIsSubmitting(false);
+            return;
+        }
+
+        const initialStatus = profileData.role === 'admin' ? 'aprovado' : 'pendente';
+
         try {
             const { error } = await supabase
                 .from('appointments')
@@ -169,7 +184,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                     user_id: user.id, 
                     start_date: format(dateRange.from, "yyyy-MM-dd"),
                     end_date: format(dateRange.to, "yyyy-MM-dd"),
-                    status: 'pendente',
+                    status: initialStatus,
                     type: appointmentType,
                     house_number: appointmentType === 'casa' ? houseNumber : null,
                 })
