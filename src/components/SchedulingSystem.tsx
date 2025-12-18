@@ -130,9 +130,13 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
     };
 
     const handleDateSelect = (range: DateRange | undefined) => {
-        if (range?.from && range.to) {
+        if (appointmentType === 'lazer' && range?.from) {
+            // For Lazer, force a single day selection
+            range.to = range.from;
+        }
+        else if (range?.from && range.to) {
             if (differenceInDays(range.to, range.from) > 3) {
-                setFormMessage({ type: 'error', text: 'Você só pode selecionar no máximo 4 dias.' });
+                setFormMessage({ type: 'error', text: 'Você só pode selecionar no máximo 4 dias para casas.' });
                 setDateRange({ from: range.from, to: addDays(range.from, 3) });
                 return;
             }
@@ -145,52 +149,74 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
         setFormMessage(null);
         setIsSubmitting(true);
 
-        if (!dateRange?.from || !dateRange.to) {
-            setFormMessage({ type: 'error', text: "Por favor, selecione um período de datas." });
+        if (!dateRange?.from) { // 'to' is not required for single day
+            setFormMessage({ type: 'error', text: "Por favor, selecione uma data." });
             setIsSubmitting(false);
             return;
         }
+        
+        // Define end_date, if it's not present in a range, it's the same as from
+        const startDate = dateRange.from;
+        const endDate = dateRange.to || dateRange.from;
+
         if (appointmentType === 'casa' && !houseNumber) {
             setFormMessage({ type: 'error', text: "Por favor, selecione o número da casa." });
             setIsSubmitting(false);
             return;
         }
+
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             setFormMessage({ type: 'error', text: "Você precisa estar logado para agendar." });
             setIsSubmitting(false);
             return;
         }
-
-        // Fetch user's role to determine initial status
-        const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-
-        if (profileError || !profileData) {
-            setFormMessage({ type: 'error', text: 'Erro ao verificar o papel do usuário.' });
-            setIsSubmitting(false);
-            return;
-        }
-
-        const initialStatus = profileData.role === 'admin' ? 'aprovado' : 'pendente';
-
+        
+        // --- CONFLICT CHECK ---
         try {
-            const { error } = await supabase
+            if (appointmentType === 'casa') {
+                const { data: conflictingCasa, error: conflictingCasaError } = await supabase
+                    .from('appointments')
+                    .select('id')
+                    .eq('type', 'casa')
+                    .eq('house_number', houseNumber)
+                    .in('status', ['aprovado', 'pendente'])
+                    .lte('start_date', format(endDate, "yyyy-MM-dd"))
+                    .gte('end_date', format(startDate, "yyyy-MM-dd"));
+
+                if (conflictingCasaError) throw conflictingCasaError;
+                if (conflictingCasa && conflictingCasa.length > 0) {
+                    throw new Error(`A Casa ${houseNumber} já possui uma reserva ou solicitação para este período.`);
+                }
+            }
+            // The general check for 'lazer' and 'casa' full capacity is already handled by isDateDisabled visually
+            // but a server-side check is always good practice. We can add it if needed.
+
+            const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+
+            if (profileError || !profileData) {
+                throw new Error('Erro ao verificar o papel do usuário.');
+            }
+
+            const initialStatus = profileData.role === 'admin' ? 'aprovado' : 'pendente';
+
+            const { error: insertError } = await supabase
                 .from('appointments')
                 .insert({ 
                     user_id: user.id, 
-                    start_date: format(dateRange.from, "yyyy-MM-dd"),
-                    end_date: format(dateRange.to, "yyyy-MM-dd"),
+                    start_date: format(startDate, "yyyy-MM-dd"),
+                    end_date: format(endDate, "yyyy-MM-dd"),
                     status: initialStatus,
                     type: appointmentType,
                     house_number: appointmentType === 'casa' ? houseNumber : null,
                 })
                 .single();
             
-            if (error) throw error;
+            if (insertError) throw insertError;
             
             setFormMessage({ type: 'success', text: "Solicitação enviada com sucesso!" });
             setDateRange(undefined);
