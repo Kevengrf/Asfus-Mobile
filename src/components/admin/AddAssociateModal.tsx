@@ -104,7 +104,7 @@ export function AddAssociateModal({ onAssociateAdded }: { onAssociateAdded: () =
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Senha Provisória</Label>
-              <Input id="password" name="password" type="text" placeholder="6 primeiros digitos do CPF" readOnly className="bg-muted" />
+              <Input id="password" name="password" type="text" placeholder="Asfus@ + 6 primeiros digitos do CPF" readOnly className="bg-muted" />
             </div>
 
             {error && <p className="text-sm text-red-500">{error}</p>}

@@ -24,9 +24,9 @@ export async function addAssociate(formData: FormData) {
     // Clean CPF for password generation (first 5 digits)
     const cleanCpf = cpf.replace(/\D/g, '');
     if (cleanCpf.length >= 6) {
-      password = cleanCpf.substring(0, 6);
+      password = `Asfus@${cleanCpf.substring(0, 6)}`;
     } else {
-      password = '1234567890'; // Fallback
+      password = 'Asfus@123456'; // Fallback
     }
   }
 
@@ -169,7 +169,7 @@ export async function resetPassword(userId: string) {
   if (profile.cpf) {
     const cleanCpf = profile.cpf.replace(/\D/g, '');
     if (cleanCpf.length >= 6) {
-      newPassword = cleanCpf.substring(0, 6);
+      newPassword = `Asfus@${cleanCpf.substring(0, 6)}`;
     }
   }
 
