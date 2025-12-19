@@ -90,11 +90,11 @@ export async function activateAccount(prevState: any, formData: FormData) {
 
     // 2. Create Auth User
     const { data: user, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        uid: userId, // CRITICAL: Link to existing profile ID
+        id: userId, // Correct property is 'id', not 'uid'
         email: email,
         password: password,
         email_confirm: true // Auto confirm
-    });
+    } as any);
 
     if (createError) {
         // Handle "User already registered" specifically if checkCpf missed it
