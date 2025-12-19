@@ -73,6 +73,7 @@ export async function createAdminUser(
       dt_nasc,
       sexo,
       telefone: telefone1,
+      email, // Ensure email is saved to profile
     })
     .eq('id', user.id);
 
@@ -89,7 +90,7 @@ export async function createAdminUser(
   // --- Sucesso ---
   // Revalida o path para que a lista de admins seja atualizada na página
   revalidatePath('/admin/dashboard/admins');
-  
+
   return {
     message: `Administrador "${name}" criado com sucesso!`,
     type: 'success',
@@ -97,56 +98,64 @@ export async function createAdminUser(
 }
 
 export async function getAdmins() {
-    const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
-    
-    if (usersError) {
-        console.error('Erro ao buscar usuários do Auth:', usersError.message);
-        return [];
-    }
+  // Busca direta na tabela profiles, evitando dependência de paginação do listUsers
+  const { data: profiles, error: profilesError } = await supabaseAdmin
+    .from('profiles')
+    .select('*')
+    .eq('role', 'admin');
 
-    const userIds = users.map(u => u.id);
-    if (userIds.length === 0) {
-        return [];
-    }
+  if (profilesError) {
+    console.error('Erro ao buscar perfis de admin:', profilesError.message);
+    return [];
+  }
 
-    const { data: profiles, error: profilesError } = await supabaseAdmin
-        .from('profiles')
-        .select('*')
-        .in('id', userIds)
-        .eq('role', 'admin');
-
-    if (profilesError) {
-        console.error('Erro ao buscar perfis de admin:', profilesError.message);
-        return [];
-    }
-    
-    const profilesMap = new Map(profiles.map((p: { id: string }) => [p.id, p]));
-    
-    const finalAdmins = users
-        .map(user => {
-            const profile = profilesMap.get(user.id);
-            if (!profile) return null;
-            
-            return {
-                ...user,
-                ...profile
-            };
-        })
-        .filter(userOrNull => userOrNull !== null);
-
-    return finalAdmins;
+  // Retorna os perfis diretamente. O email agora deve estar salvo no perfil.
+  // Se não estiver, o componente vai mostrar o que tiver ou N/A.
+  return profiles || [];
 }
 
 export async function deleteAdmin(userId: string) {
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+  // 1. Delete from AuthService
+  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
-    if (error) {
-        console.error("Error deleting admin:", error.message)
-        return { error: 'Erro ao deletar o admin.' };
-    }
-    
-    revalidatePath('/admin/dashboard/admins');
-    return { message: 'Admin deletado com sucesso.' };
+  if (authError && !authError.message.includes('User not found')) {
+    console.error("Error deleting admin from Auth:", authError.message)
+    return { error: 'Erro ao deletar o admin do Auth.' };
+  }
+
+  // 2. Delete from Profiles table
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .delete()
+    .eq('id', userId);
+
+  if (profileError) {
+    console.error("Error deleting admin profile:", profileError.message)
+    // Similar to deleteAssociate, we don't return error if Auth deletion succeeded
+  }
+
+  revalidatePath('/admin/dashboard/admins');
+  return { message: 'Admin deletado com sucesso.' };
+}
+
+export async function demoteAdmin(userId: string) {
+  if (!userId) {
+    return { error: 'ID do usuário é obrigatório.' };
+  }
+
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ role: 'user' })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Erro ao demover admin:', error.message);
+    return { error: `Erro ao demover admin: ${error.message}` };
+  }
+
+  revalidatePath('/admin/dashboard/admins');
+  revalidatePath('/admin/dashboard/associates');
+  return { message: 'Admin removido da lista de administradores com sucesso.' };
 }
 
 export async function logout() {

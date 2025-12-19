@@ -15,23 +15,24 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase/client";
-import { Download, Loader2, ShieldCheck } from "lucide-react";
+import { Download, Loader2, ShieldCheck, Trash2 } from "lucide-react";
 import { AddAssociateModal } from "@/components/admin/AddAssociateModal";
-import { promoteToAdmin } from "./actions";
+import { promoteToAdmin, deleteAssociate, resetPassword } from "./actions";
+import { KeyRound } from "lucide-react";
 
 type Profile = {
-    id: string;
-    nome_completo: string;
-    email: string;
-    cpf: string | null;
-    telefone: string | null;
-    matricula: string | null;
-    status: 'ativo' | 'pendente' | 'rejeitado';
-    role: 'admin' | 'user';
-    codtipo: string | null;
-    chapa: string | null;
-    dt_nasc: string | null;
-    sexo: string | null;
+  id: string;
+  nome_completo: string;
+  email: string;
+  cpf: string | null;
+  telefone: string | null;
+  matricula: string | null;
+  status: 'ativo' | 'pendente' | 'rejeitado';
+  role: 'admin' | 'user';
+  codtipo: string | null;
+  chapa: string | null;
+  dt_nasc: string | null;
+  sexo: string | null;
 };
 
 export default function AssociatesPage() {
@@ -40,6 +41,8 @@ export default function AssociatesPage() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(true);
   const [isPromoting, setIsPromoting] = React.useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState<string | null>(null);
+  const [isReseting, setIsReseting] = React.useState<string | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
 
@@ -59,10 +62,10 @@ export default function AssociatesPage() {
 
   React.useEffect(() => {
     const lowercasedQuery = searchQuery.toLowerCase();
-    const filtered = allProfiles.filter(profile => 
-        Object.values(profile).some(value => 
-            String(value).toLowerCase().includes(lowercasedQuery)
-        )
+    const filtered = allProfiles.filter(profile =>
+      Object.values(profile).some(value =>
+        String(value).toLowerCase().includes(lowercasedQuery)
+      )
     );
     setFilteredProfiles(filtered);
     setCurrentPage(1);
@@ -70,26 +73,48 @@ export default function AssociatesPage() {
 
   const handlePromote = async (userId: string) => {
     if (confirm('Tem certeza que deseja promover este usuário a Administrador?')) {
-        setIsPromoting(userId);
-        await promoteToAdmin(userId);
-        await fetchProfiles(); // Refresh data to show the new role
-        setIsPromoting(null);
+      setIsPromoting(userId);
+      await promoteToAdmin(userId);
+      await fetchProfiles(); // Refresh data to show the new role
+      setIsPromoting(null);
+    }
+  }
+
+  const handleResetPassword = async (userId: string) => {
+    if (confirm('Tem certeza que deseja resetar a senha deste usuário? A nova senha será os 5 primeiros dígitos do CPF (ou 1234567890 se não houver CPF).')) {
+      setIsReseting(userId);
+      const result = await resetPassword(userId);
+      if (result.error) {
+        alert(result.error);
+      } else {
+        alert(result.message);
+      }
+      setIsReseting(null);
+    }
+  }
+
+  const handleDelete = async (userId: string) => {
+    if (confirm('Tem certeza que deseja deletar este associado? Esta ação não pode ser desfeita.')) {
+      setIsDeleting(userId);
+      await deleteAssociate(userId);
+      await fetchProfiles();
+      setIsDeleting(null);
     }
   }
 
   const handleExportXLSX = () => {
     const dataToExport = filteredProfiles.map(p => ({
-        "Nome Completo": p.nome_completo,
-        "Email": p.email,
-        "CPF": p.cpf,
-        "Telefone": p.telefone,
-        "Matrícula": p.matricula,
-        "Data de Nascimento": p.dt_nasc,
-        "Sexo": p.sexo,
-        "Código do Tipo": p.codtipo,
-        "Chapa": p.chapa,
-        "Status": p.status,
-        "Papel": p.role,
+      "Nome Completo": p.nome_completo,
+      "Email": p.email,
+      "CPF": p.cpf,
+      "Telefone": p.telefone,
+      "Matrícula": p.matricula,
+      "Data de Nascimento": p.dt_nasc,
+      "Sexo": p.sexo,
+      "Código do Tipo": p.codtipo,
+      "Chapa": p.chapa,
+      "Status": p.status,
+      "Papel": p.role,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -107,28 +132,28 @@ export default function AssociatesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h1 className="text-2xl font-bold">Gerenciamento de Associados</h1>
-            <p className="text-muted-foreground">Visualize, adicione, promova e exporte os dados.</p>
+          <h1 className="text-2xl font-bold">Gerenciamento de Associados</h1>
+          <p className="text-muted-foreground">Visualize, adicione, promova e exporte os dados.</p>
         </div>
         <div className="flex gap-2">
-            <AddAssociateModal onAssociateAdded={fetchProfiles} />
-            <Button onClick={handleExportXLSX} disabled={filteredProfiles.length === 0}>
-                <Download className="mr-2 h-4 w-4"/>
-                Exportar para XLSX
-            </Button>
+          <AddAssociateModal onAssociateAdded={fetchProfiles} />
+          <Button onClick={handleExportXLSX} disabled={filteredProfiles.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            Exportar para XLSX
+          </Button>
         </div>
       </div>
 
       <Input
-          placeholder="Buscar por qualquer informação..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-sm"
-        />
+        placeholder="Buscar por qualquer informação..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="max-w-sm"
+      />
 
       <div className="border rounded-lg overflow-x-auto">
         {isLoading ? (
-          <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin"/></div>
+          <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
         ) : (
           <>
             <Table className="min-w-max">
@@ -145,31 +170,42 @@ export default function AssociatesPage() {
               </TableHeader>
               <TableBody>
                 {currentProfiles.map((profile) => (
-                    <TableRow key={profile.id}>
-                      <TableCell className="font-medium">{profile.nome_completo}</TableCell>
-                      <TableCell>{profile.email}</TableCell>
-                      <TableCell>
-                        <Badge variant={profile.role === 'admin' ? 'default' : 'secondary'}>
-                          {profile.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{profile.cpf || "N/A"}</TableCell>
-                      <TableCell>{profile.telefone || "N/A"}</TableCell>
-                      <TableCell>
-                        <Badge variant={profile.status === 'ativo' ? 'default' : (profile.status === 'pendente' ? 'secondary' : 'destructive')} className={profile.status === 'ativo' ? 'bg-green-600' : ''}>
-                          {profile.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {profile.role !== 'admin' && (
-                            <Button size="sm" onClick={() => handlePromote(profile.id)} disabled={isPromoting === profile.id}>
-                                {isPromoting === profile.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
-                                Tornar Admin
-                            </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  <TableRow key={profile.id}>
+                    <TableCell className="font-medium">{profile.nome_completo}</TableCell>
+                    <TableCell>{profile.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={profile.role === 'admin' ? 'default' : 'secondary'}>
+                        {profile.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{profile.cpf || "N/A"}</TableCell>
+                    <TableCell>{profile.telefone || "N/A"}</TableCell>
+                    <TableCell>
+                      <Badge variant={profile.status === 'ativo' ? 'default' : (profile.status === 'pendente' ? 'secondary' : 'destructive')} className={profile.status === 'ativo' ? 'bg-green-600' : ''}>
+                        {profile.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {profile.role !== 'admin' && (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => handleResetPassword(profile.id)} disabled={isReseting === profile.id} className="mr-2" title="Resetar senha para padrão">
+                            {isReseting === profile.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                          </Button>
+                          <Button size="sm" onClick={() => handlePromote(profile.id)} disabled={isPromoting === profile.id}>
+                            {isPromoting === profile.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                            Tornar Admin
+                          </Button>
+                        </>
+                      )}
+                      {profile.role !== 'admin' && (
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(profile.id)} disabled={isDeleting === profile.id} className="ml-2">
+                          {isDeleting === profile.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                          Deletar
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
                 }
               </TableBody>
             </Table>

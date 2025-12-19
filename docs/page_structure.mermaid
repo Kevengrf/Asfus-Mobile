@@ -1,0 +1,63 @@
+# Page Structure Diagram
+
+-- This diagram represents the navigation -- structure of the Asfus-Mobile application.
+
+
+graph TD
+    %% Public Pages
+    Home["/ (Home Page)"]
+    Login["/login (Login)"]
+    Register["/register (Cadastro)"]
+    PublicGallery["/gallery (Galeria Pública)"]
+    Contact["/contact (Contato)"]
+
+    %% User Area
+    UserDash["/dashboard (Painel do Associado)"]
+
+    %% Admin Area
+    AdminLogin["/admin/login (Login Admin)"]
+    AdminDash["/admin/dashboard (Painel Admin / Aprovações)"]
+    
+    %% Admin Sub-pages
+    AdminAssociates["/admin/dashboard/associates (Associados)"]
+    AdminNews["/admin/dashboard/news (Notícias)"]
+    AdminPartners["/admin/dashboard/partners (Parceiros)"]
+    AdminEvents["/admin/dashboard/events (Eventos)"]
+    AdminGallery["/admin/dashboard/gallery (Gerenciar Galeria)"]
+    AdminAppointments["/admin/dashboard/appointments (Gerenciar Agendamentos)"]
+    AdminAdmins["/admin/dashboard/admins (Administradores)"]
+    AdminMakeAppt["/admin/dashboard/fazer-agendamento (Fazer Agendamento)"]
+
+    %% Relationships
+    Home --> Login
+    Home --> Register
+    Home --> PublicGallery
+    Home --> Contact
+    
+    Login --> UserDash
+    Login --> AdminDash
+
+    subgraph "Área Pública"
+        Home
+        Login
+        Register
+        PublicGallery
+        Contact
+    end
+
+    subgraph "Área do Associado"
+        UserDash
+    end
+
+    subgraph "Área Administrativa"
+        AdminLogin --> AdminDash
+        AdminDash --> AdminAssociates
+        AdminDash --> AdminNews
+        AdminDash --> AdminPartners
+        AdminDash --> AdminEvents
+        AdminDash --> AdminGallery
+        AdminDash --> AdminAppointments
+        AdminDash --> AdminAdmins
+        AdminDash --> AdminMakeAppt
+    end
+

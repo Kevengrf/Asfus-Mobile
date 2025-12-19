@@ -1,10 +1,19 @@
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { ApprovalsClient } from "@/components/admin/ApprovalsClient";
 
-import { redirect } from 'next/navigation';
+export const dynamic = 'force-dynamic';
 
-// This is a Server Component that performs a redirect.
-export default function AdminDashboardRedirectPage() {
-  redirect('/admin/dashboard/appointments');
-  
-  // Return null or a loading component, although redirect should happen on the server.
-  return null;
+export default async function AdminDashboardPage() {
+  const { data: pendingProfiles, error } = await supabaseAdmin
+    .from('profiles')
+    .select('*')
+    .eq('status', 'pendente')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching pending profiles:", error);
+    return <div>Erro ao carregar solicitações.</div>;
+  }
+
+  return <ApprovalsClient pendingProfiles={pendingProfiles as any} />;
 }

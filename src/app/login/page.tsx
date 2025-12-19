@@ -17,6 +17,8 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 
+import { getEmailByCpf } from './actions';
+
 export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -29,12 +31,27 @@ export default function LoginPage() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const email = formData.get("email") as string;
+    let identifier = formData.get("email") as string; // Field is still named email/cpf in UI
     const password = formData.get("password") as string;
+
+    // Check if input looks like a CPF (digits only or formatted cpf)
+    // Simple check: does it NOT look like an email? @ is a good indicator.
+    if (!identifier.includes('@')) {
+      // Assume it's a CPF
+      const email = await getEmailByCpf(identifier);
+      if (!email) {
+        setIsLoading(false);
+        setError("CPF não encontrado ou inválido.");
+        return;
+      }
+      identifier = email;
+    }
+
+    console.log('[Login] Attempting with identifier:', identifier);
 
     // 1. Tenta fazer o login
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
+      email: identifier,
       password,
     });
 
@@ -50,20 +67,20 @@ export default function LoginPage() {
       .select("role, status")
       .eq("id", authData.user.id)
       .single();
-    
+
     if (profileError || !profile) {
-        await supabase.auth.signOut();
-        setIsLoading(false);
-        setError("Erro ao verificar permissões.");
-        return;
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      setError("Erro ao verificar permissões.");
+      return;
     }
-    
+
     // 3. Verifica se o cadastro está ativo
     if (profile.status !== 'ativo') {
-        await supabase.auth.signOut();
-        setIsLoading(false);
-        setError("Seu cadastro ainda está pendente de aprovação.");
-        return;
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      setError("Seu cadastro ainda está pendente de aprovação.");
+      return;
     }
 
     // 4. Redireciona com base na role
@@ -87,8 +104,8 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" placeholder="m@exemplo.com" required />
+              <Label htmlFor="email">Email ou CPF</Label>
+              <Input id="email" name="email" type="text" placeholder="Email ou CPF" required />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Senha</Label>
@@ -114,10 +131,16 @@ export default function LoginPage() {
           </CardFooter>
         </form>
         <div className="mb-4 text-center text-sm">
-            Ainda não é associado?{" "}
-            <Link href="/register" className="underline underline-offset-4 hover:text-primary">
-                Cadastre-se
-            </Link>
+          Ainda não é associado?{" "}
+          <Link href="/register" className="underline underline-offset-4 hover:text-primary">
+            Cadastre-se
+          </Link>
+        </div>
+        <div className="mb-4 text-center text-sm">
+          Já é associado?{" "}
+          <Link href="/first-access" className="underline underline-offset-4 hover:text-primary font-bold">
+            Primeiro Acesso
+          </Link>
         </div>
       </Card>
     </div>
