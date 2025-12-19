@@ -165,7 +165,7 @@ export async function resetPassword(userId: string) {
     return { error: `Erro ao buscar perfil para resetar senha: ${profileError?.message}` };
   }
 
-  let newPassword = '1234567890';
+  let newPassword = 'Asfus@123456';
   if (profile.cpf) {
     const cleanCpf = profile.cpf.replace(/\D/g, '');
     if (cleanCpf.length >= 6) {
