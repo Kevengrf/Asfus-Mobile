@@ -58,17 +58,17 @@ export async function activateAccount(prevState: any, formData: FormData) {
     const confirmPassword = formData.get("confirmPassword") as string;
 
     if (password !== confirmPassword) {
-        return { error: "As senhas não coincidem." };
+        return { success: false, error: "As senhas não coincidem." };
     }
 
     if (password.length < 6) {
-        return { error: "A senha deve ter no mínimo 6 caracteres." };
+        return { success: false, error: "A senha deve ter no mínimo 6 caracteres." };
     }
 
     // 1. Fetch Profile again to be safe
     const check = await checkCpf(cpf);
     if (!check.success || !check.cpf) {
-        return { error: check.error || "Erro ao validar CPF." };
+        return { success: false, error: check.error || "Erro ao validar CPF." };
     }
 
     // Recover ID from profile search (checkCpf didn't return ID to client for security, but we need it here)
@@ -85,7 +85,7 @@ export async function activateAccount(prevState: any, formData: FormData) {
         .in('cpf', possibilities)
         .single();
 
-    if (!profiles) return { error: "Perfil não encontrado." };
+    if (!profiles) return { success: false, error: "Perfil não encontrado." };
     const userId = profiles.id;
 
     // 2. Create Auth User
@@ -99,9 +99,9 @@ export async function activateAccount(prevState: any, formData: FormData) {
     if (createError) {
         // Handle "User already registered" specifically if checkCpf missed it
         if (createError.message.includes("already registered")) {
-            return { error: "Usuário já registrado. Faça login." };
+            return { success: false, error: "Usuário já registrado. Faça login." };
         }
-        return { error: `Erro ao criar usuário: ${createError.message}` };
+        return { success: false, error: `Erro ao criar usuário: ${createError.message}` };
     }
 
     // 3. Update Profile Email if changed
@@ -113,5 +113,5 @@ export async function activateAccount(prevState: any, formData: FormData) {
             .eq('id', userId);
     }
 
-    return { success: true };
+    return { success: true, error: "" };
 }
