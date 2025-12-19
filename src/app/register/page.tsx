@@ -44,10 +44,10 @@ export default function RegisterPage() {
         // Auto-generate password from CPF (first 5 digits)
         const cleanCpf = cpf.replace(/\D/g, '');
         let password = '1234567890'; // Fallback
-        if (cleanCpf.length >= 5) {
-            password = cleanCpf.substring(0, 5);
+        if (cleanCpf.length >= 6) {
+            password = cleanCpf.substring(0, 6);
         } else {
-            password = '1234567890';
+            password = '123456';
         }
 
         // Usando o cliente Supabase para registrar
