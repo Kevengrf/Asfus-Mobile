@@ -56,6 +56,7 @@ export default function RegisterPage() {
             password,
             options: {
                 // Dados extras que a nossa função SQL vai usar
+                // Dados extras que a nossa função SQL vai usar
                 data: {
                     nome_completo,
                     cpf,
@@ -64,10 +65,10 @@ export default function RegisterPage() {
                     dt_nasc,
                     sexo,
                     telefone1,
-                    nome_dependente,
-                    sexo_dependente,
-                    grauparentesco_dependente,
-                    data_nascimento_dependente,
+                    nome_dependente: nome_dependente || null,
+                    sexo_dependente: sexo_dependente || null,
+                    grauparentesco_dependente: grauparentesco_dependente || null,
+                    data_nascimento_dependente: data_nascimento_dependente || null,
                 }
             }
         });
