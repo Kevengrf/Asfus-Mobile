@@ -93,7 +93,11 @@ export async function activateAccount(prevState: any, formData: FormData) {
         id: userId, // Correct property is 'id', not 'uid'
         email: email,
         password: password,
-        email_confirm: true // Auto confirm
+        email_confirm: true, // Auto confirm
+        user_metadata: {
+            nome_completo: check.name,
+            skip_profile_creation: true
+        }
     } as any);
 
     if (createError) {

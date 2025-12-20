@@ -157,7 +157,7 @@ export async function resetPassword(userId: string) {
   // 1. Fetch user profile to get CPF
   const { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
-    .select('cpf')
+    .select('cpf, email')
     .eq('id', userId)
     .single();
 
@@ -179,6 +179,28 @@ export async function resetPassword(userId: string) {
   });
 
   if (error) {
+    // If user doesn't exist (Imported user), create them now
+    if (error.message.toLowerCase().includes("user not found")) {
+      console.log('User not found in Auth, creating new user for profile:', userId);
+      const { error: createError } = await supabaseAdmin.auth.admin.createUser({
+        id: userId, // Link to existing profile
+        email: profile.email,
+        password: newPassword,
+        email_confirm: true,
+        user_metadata: {
+          must_change_password: true,
+          skip_profile_creation: true
+        }
+      });
+
+      if (createError) {
+        console.error('Error creating user during reset:', createError);
+        return { error: "Erro ao criar usuário: " + createError.message };
+      }
+
+      return { message: `Usuário importado ativado! Senha definida para: ${newPassword}` };
+    }
+
     console.error('Erro ao resetar senha:', error.message);
     return { error: `Erro ao resetar senha: ${error.message}` };
   }
