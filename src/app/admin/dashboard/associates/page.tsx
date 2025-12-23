@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -14,11 +13,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { supabase } from "@/lib/supabase/client";
-import { Download, Loader2, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, Loader2, ShieldCheck, Trash2, KeyRound } from "lucide-react";
 import { AddAssociateModal } from "@/components/admin/AddAssociateModal";
 import { promoteToAdmin, deleteAssociate, resetPassword } from "./actions";
-import { KeyRound } from "lucide-react";
 
 type Profile = {
   id: string;
@@ -135,27 +139,73 @@ export default function AssociatesPage() {
           <h1 className="text-2xl font-bold">Gerenciamento de Associados</h1>
           <p className="text-muted-foreground">Visualize, adicione, promova e exporte os dados.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
           <AddAssociateModal onAssociateAdded={fetchProfiles} />
-          <Button onClick={handleExportXLSX} disabled={filteredProfiles.length === 0}>
+          <Button onClick={handleExportXLSX} disabled={filteredProfiles.length === 0} variant="outline" className="w-full sm:w-auto">
             <Download className="mr-2 h-4 w-4" />
-            Exportar para XLSX
+            Exportar XLSX
           </Button>
         </div>
       </div>
 
       <Input
-        placeholder="Buscar por qualquer informação..."
+        placeholder="Buscar por nome, email, CPF..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         className="max-w-sm"
       />
 
-      <div className="border rounded-lg overflow-x-auto">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
-        ) : (
-          <>
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
+      ) : (
+        <>
+          {/* Mobile View: Cards */}
+          <div className="grid grid-cols-1 gap-4 md:hidden">
+            {currentProfiles.map((profile) => (
+              <Card key={profile.id} className="shadow-sm">
+                <CardHeader className="p-4 pb-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-base font-bold">{profile.nome_completo}</CardTitle>
+                      <p className="text-sm text-muted-foreground break-all">{profile.email}</p>
+                    </div>
+                    <Badge variant={profile.status === 'ativo' ? 'default' : (profile.status === 'pendente' ? 'secondary' : 'destructive')} className={profile.status === 'ativo' ? 'bg-green-600' : ''}>
+                      {profile.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 pt-2 text-sm space-y-2">
+                  <div className="grid grid-cols-2 gap-2 text-gray-600">
+                    <div><span className="font-semibold block">CPF:</span> {profile.cpf || "N/A"}</div>
+                    <div><span className="font-semibold block">Telefone:</span> {profile.telefone || "N/A"}</div>
+                    <div><span className="font-semibold block">Papel:</span> {profile.role}</div>
+                  </div>
+
+                  <div className="pt-4 flex flex-wrap gap-2 justify-end border-t mt-2">
+                    {profile.role !== 'admin' && (
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => handleResetPassword(profile.id)} disabled={isReseting === profile.id} title="Resetar Senha">
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => handlePromote(profile.id)} disabled={isPromoting === profile.id}>
+                          {isPromoting === profile.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-1" />}
+                          Admin
+                        </Button>
+                      </>
+                    )}
+                    {profile.role !== 'admin' && (
+                      <Button size="sm" variant="destructive" onClick={() => handleDelete(profile.id)} disabled={isDeleting === profile.id}>
+                        {isDeleting === profile.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop View: Table */}
+          <div className="hidden md:block border rounded-lg overflow-x-auto">
             <Table className="min-w-max">
               <TableHeader>
                 <TableRow>
@@ -209,14 +259,17 @@ export default function AssociatesPage() {
                 }
               </TableBody>
             </Table>
-            <div className="flex justify-end items-center gap-4 p-4">
-              <span>Página {currentPage} de {totalPages}</span>
-              <Button variant="outline" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>Anterior</Button>
-              <Button variant="outline" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages || totalPages === 0}>Próxima</Button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4">
+            <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>Anterior</Button>
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages || totalPages === 0}>Próxima</Button>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

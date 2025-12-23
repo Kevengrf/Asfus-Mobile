@@ -143,19 +143,46 @@ export async function demoteAdmin(userId: string) {
     return { error: 'ID do usuário é obrigatório.' };
   }
 
+  // 1. Check if user exists first to be safe
+  const { data: profile, error: fetchError } = await supabaseAdmin
+    .from('profiles')
+    .select('id, role')
+    .eq('id', userId)
+    .single();
+
+  if (fetchError || !profile) {
+    console.error('Erro ao verificar usuário antes de demovê-lo:', fetchError?.message);
+    return { error: 'Usuário não encontrado.' };
+  }
+
+  // 2. Update role to 'user' AND ensure status is 'ativo'
+  // This prevents them from disappearing if they had a weird status or if role change triggered something.
   const { error } = await supabaseAdmin
     .from('profiles')
-    .update({ role: 'user' })
+    .update({
+      role: 'user',
+      status: 'ativo'
+    })
     .eq('id', userId);
 
   if (error) {
-    console.error('Erro ao demover admin:', error.message);
-    return { error: `Erro ao demover admin: ${error.message}` };
+    console.error('Erro ao demovê-lo para associado:', error.message);
+    return { error: `Erro ao demovê-lo para associado: ${error.message}` };
+  }
+
+  // 3. Update Auth Metadata as well to keep in sync (for middleware)
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    user_metadata: { role: 'user', status: 'ativo' }
+  });
+
+  if (authError) {
+    console.error('Aviso: Falha ao atualizar metadata do Auth:', authError.message);
+    // Non-critical, but good to know
   }
 
   revalidatePath('/admin/dashboard/admins');
   revalidatePath('/admin/dashboard/associates');
-  return { message: 'Admin removido da lista de administradores com sucesso.' };
+  return { message: 'Admin alterado para associado com sucesso.' };
 }
 
 export async function logout() {

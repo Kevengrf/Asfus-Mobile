@@ -1,12 +1,12 @@
 
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
 // Pega a URL e a Chave Anônima do arquivo .env.local
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Cria e exporta o cliente Supabase para ser usado no lado do navegador
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Cria e exporta o cliente Supabase para ser usado no lado do navegador (SSR-friendly)
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
 
 // --- News Functions ---
 export async function getAllNews() {
@@ -172,4 +172,3 @@ export async function deleteGallery(id: number) {
     throw error;
   }
 }
-

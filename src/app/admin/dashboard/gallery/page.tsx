@@ -4,19 +4,19 @@
 import * as React from "react";
 import Image from "next/image";
 import { supabase, deleteGallery } from "@/lib/supabase/client";
-import { 
-    Card, 
-    CardContent, 
-    CardHeader, 
-    CardTitle 
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { 
-    Dialog, 
-    DialogContent, 
-    DialogHeader, 
-    DialogTitle, 
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
     DialogTrigger,
     DialogFooter,
     DialogClose
@@ -72,7 +72,7 @@ export default function AdminGalleryPage() {
 
         const filePath = `gallery/${Date.now()}_${file.name}`;
         const { error: uploadErrorStorage } = await supabase.storage.from('galeria').upload(filePath, file);
-        
+
         if (uploadErrorStorage) {
             setUploadError(`Erro no upload: ${uploadErrorStorage.message}`);
             setIsUploading(false);
@@ -107,7 +107,7 @@ export default function AdminGalleryPage() {
 
     const handleDelete = async (id: number, imageUrl: string) => {
         if (!confirm('Tem certeza que deseja remover esta imagem da galeria?')) return;
-        
+
         setIsLoading(true);
         try {
             const filePath = imageUrl.split('galeria/').pop();
@@ -132,14 +132,14 @@ export default function AdminGalleryPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Gerenciamento da Galeria</h1>
                     <p className="text-muted-foreground">Envie e gerencie as fotos da galeria pública do site.</p>
                 </div>
                 <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                     <DialogTrigger asChild>
-                        <Button>
+                        <Button className="w-full md:w-auto">
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Adicionar Imagem
                         </Button>
@@ -157,7 +157,7 @@ export default function AdminGalleryPage() {
                                     <Button type="button" variant="secondary">Cancelar</Button>
                                 </DialogClose>
                                 <Button type="submit" disabled={isUploading}>
-                                    {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
+                                    {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                                     Enviar
                                 </Button>
                             </DialogFooter>
@@ -169,7 +169,7 @@ export default function AdminGalleryPage() {
             <Card>
                 <CardHeader><CardTitle>Imagens Atuais</CardTitle></CardHeader>
                 <CardContent>
-                    {isLoading ? <Loader2 className="h-8 w-8 animate-spin mx-auto"/> : (
+                    {isLoading ? <Loader2 className="h-8 w-8 animate-spin mx-auto" /> : (
                         <>
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                 {currentImages.map(image => (
@@ -187,7 +187,7 @@ export default function AdminGalleryPage() {
                                     </div>
                                 ))}
                             </div>
-                             <div className="flex justify-end items-center gap-4 mt-4">
+                            <div className="flex justify-end items-center gap-4 mt-4">
                                 <span>Página {currentPage} de {totalPages}</span>
                                 <Button
                                     variant="outline"

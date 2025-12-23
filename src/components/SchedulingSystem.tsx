@@ -9,11 +9,11 @@ import { addDays, differenceInDays, eachDayOfInterval } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
     const [appointmentType, setAppointmentType] = React.useState<'lazer' | 'casa'>('lazer');
     const [houseNumber, setHouseNumber] = React.useState<number | undefined>();
     const [userAppointments, setUserAppointments] = React.useState<Appointment[]>([]);
-    
+
     const [allAppointments, setAllAppointments] = React.useState<Appointment[]>([]);
     const [pendingDates, setPendingDates] = React.useState<Date[]>([]);
     const [approvedLazerDates, setApprovedLazerDates] = React.useState<Date[]>([]);
@@ -47,12 +47,12 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
-    const [formMessage, setFormMessage] = React.useState<{type: 'error' | 'success', text: string} | null>(null);
+    const [formMessage, setFormMessage] = React.useState<{ type: 'error' | 'success', text: string } | null>(null);
 
     const fetchPageData = React.useCallback(async () => {
         setIsLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
-        
+
         if (user && showHistory) {
             const { data: userAppointmentsData } = await supabase
                 .from('appointments')
@@ -66,14 +66,14 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
             .from('appointments')
             .select('*')
             .in('status', ['aprovado', 'pendente']);
-        
+
         if (error) {
             alert(`Erro ao buscar agendamentos: ${error.message}`);
         } else if (allAppointmentsData) {
             setAllAppointments(allAppointmentsData as any);
             processAppointmentsForCalendar(allAppointmentsData as any);
         }
-        
+
         setIsLoading(false);
     }, [showHistory]);
 
@@ -82,34 +82,34 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
     }, [fetchPageData]);
 
     const processAppointmentsForCalendar = (appointments: Appointment[]) => {
-      let pending: Date[] = [];
-      let approvedLazer: Date[] = [];
-      const approvedCasaCount: { [key: string]: number } = {};
+        let pending: Date[] = [];
+        let approvedLazer: Date[] = [];
+        const approvedCasaCount: { [key: string]: number } = {};
 
-      appointments.forEach(app => {
-          if (!app.start_date || !app.end_date) return;
-          const interval = eachDayOfInterval({ start: new Date(app.start_date), end: new Date(app.end_date) });
-          
-          if (app.status === 'pendente') {
-              pending.push(...interval);
-          } else if (app.status === 'aprovado') {
-              if (app.type === 'lazer') {
-                  approvedLazer.push(...interval);
-              } else if (app.type === 'casa') {
-                  interval.forEach(date => {
-                      const dateString = format(date, 'yyyy-MM-dd');
-                      approvedCasaCount[dateString] = (approvedCasaCount[dateString] || 0) + 1;
-                  });
-              }
-          }
-      });
-      
-      const fullyBooked = Object.keys(approvedCasaCount).filter(date => approvedCasaCount[date] >= 11).map(dateStr => new Date(dateStr));
+        appointments.forEach(app => {
+            if (!app.start_date || !app.end_date) return;
+            const interval = eachDayOfInterval({ start: new Date(app.start_date), end: new Date(app.end_date) });
 
-      setPendingDates(pending);
-      setApprovedLazerDates(approvedLazer);
-      setFullyBookedCasaDates(fullyBooked);
-  };
+            if (app.status === 'pendente') {
+                pending.push(...interval);
+            } else if (app.status === 'aprovado') {
+                if (app.type === 'lazer') {
+                    approvedLazer.push(...interval);
+                } else if (app.type === 'casa') {
+                    interval.forEach(date => {
+                        const dateString = format(date, 'yyyy-MM-dd');
+                        approvedCasaCount[dateString] = (approvedCasaCount[dateString] || 0) + 1;
+                    });
+                }
+            }
+        });
+
+        const fullyBooked = Object.keys(approvedCasaCount).filter(date => approvedCasaCount[date] >= 11).map(dateStr => new Date(dateStr));
+
+        setPendingDates(pending);
+        setApprovedLazerDates(approvedLazer);
+        setFullyBookedCasaDates(fullyBooked);
+    };
 
     const isDateDisabled = (date: Date): boolean => {
         const dateString = format(date, 'yyyy-MM-dd');
@@ -118,7 +118,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
         const isCasaFull = fullyBookedCasaDates.some(d => format(d, 'yyyy-MM-dd') === dateString);
         return isPast || isLazerBooked || isCasaFull;
     };
-  
+
     const modifiers = {
         pending: pendingDates,
         approved: [...approvedLazerDates, ...fullyBookedCasaDates],
@@ -154,7 +154,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
             setIsSubmitting(false);
             return;
         }
-        
+
         // Define end_date, if it's not present in a range, it's the same as from
         const startDate = dateRange.from;
         const endDate = dateRange.to || dateRange.from;
@@ -171,7 +171,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
             setIsSubmitting(false);
             return;
         }
-        
+
         // --- CONFLICT CHECK ---
         try {
             if (appointmentType === 'casa') {
@@ -206,24 +206,26 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
             const { error: insertError } = await supabase
                 .from('appointments')
-                .insert({ 
-                    user_id: user.id, 
+                .insert({
+                    user_id: user.id,
                     start_date: format(startDate, "yyyy-MM-dd"),
                     end_date: format(endDate, "yyyy-MM-dd"),
+                    // Fix: DB still requires booking_date, map it to start_date
+                    booking_date: format(startDate, "yyyy-MM-dd"),
                     status: initialStatus,
                     type: appointmentType,
                     house_number: appointmentType === 'casa' ? houseNumber : null,
                 })
                 .single();
-            
+
             if (insertError) throw insertError;
-            
+
             setFormMessage({ type: 'success', text: "Solicitação enviada com sucesso!" });
             setDateRange(undefined);
             setHouseNumber(undefined);
             fetchPageData();
 
-        } catch(error: any) {
+        } catch (error: any) {
             console.error("Booking error:", error);
             setFormMessage({ type: 'error', text: `Erro ao agendar: ${error.message}` });
         } finally {
@@ -256,7 +258,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                         </CardFooter>
                     </Card>
                 </div>
-                
+
                 <div>
                     <Card>
                         <CardHeader><CardTitle>Sua Reserva</CardTitle></CardHeader>
@@ -276,7 +278,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                         Uso Lazer
                                     </Label>
                                     <Label className="flex items-center gap-2 cursor-pointer p-2 rounded-md has-[:checked]:bg-blue-100 has-[:checked]:border-blue-300 border-2 border-transparent transition-all">
-                                        <input type="radio" name="appointmentType" value="casa" checked={appointmentType === 'casa'} onChange={() => setAppointmentType('casa')} className="sr-only"/>
+                                        <input type="radio" name="appointmentType" value="casa" checked={appointmentType === 'casa'} onChange={() => setAppointmentType('casa')} className="sr-only" />
                                         Uso Casa
                                     </Label>
                                 </div>
@@ -309,33 +311,67 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                     <h2 className="text-3xl font-bold mb-4">Seu Histórico</h2>
                     <Card>
                         <CardContent className="p-0">
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Período</TableHead><TableHead>Tipo</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {isLoading ? (
-                                        <TableRow><TableCell colSpan={3} className="h-24 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin" /></TableCell></TableRow>
-                                    ) : userAppointments.length > 0 ? (
-                                        userAppointments.map((app) => (
-                                        <TableRow key={app.id}>
-                                            <TableCell className="font-medium">
-                                                {app.start_date && app.end_date ? 
-                                                    `${format(new Date(app.start_date), "dd/MM/yy")} - ${format(new Date(app.end_date), "dd/MM/yy")}`
-                                                    : 'Data Inválida'
-                                                }
-                                            </TableCell>
-                                            <TableCell className="capitalize">{app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer'}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')} className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
-                                                    {app.status}
-                                                </Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow><TableCell colSpan={3} className="h-24 text-center">Nenhum agendamento encontrado.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
+                            {/* Mobile View: Cards */}
+                            <div className="grid grid-cols-1 gap-4 md:hidden p-4">
+                                {isLoading ? (
+                                    <div className="flex justify-center p-4"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                                ) : userAppointments.length > 0 ? (
+                                    userAppointments.map((app) => (
+                                        <Card key={app.id} className="shadow-sm border">
+                                            <CardHeader className="p-4 pb-2">
+                                                <div className="flex justify-between items-start">
+                                                    <CardTitle className="text-base font-bold">
+                                                        {app.start_date && app.end_date ?
+                                                            `${format(new Date(app.start_date), "dd/MM/yy")} - ${format(new Date(app.end_date), "dd/MM/yy")}`
+                                                            : 'Data Inválida'
+                                                        }
+                                                    </CardTitle>
+                                                    <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')} className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
+                                                        {app.status}
+                                                    </Badge>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="p-4 pt-2 text-sm">
+                                                <span className="font-semibold text-gray-600">Tipo: </span>
+                                                <span className="capitalize">{app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer'}</span>
+                                            </CardContent>
+                                        </Card>
+                                    ))
+                                ) : (
+                                    <p className="text-center text-muted-foreground">Nenhum agendamento encontrado.</p>
+                                )}
+                            </div>
+
+                            {/* Desktop View: Table */}
+                            <div className="hidden md:block">
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Período</TableHead><TableHead>Tipo</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {isLoading ? (
+                                            <TableRow><TableCell colSpan={3} className="h-24 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin" /></TableCell></TableRow>
+                                        ) : userAppointments.length > 0 ? (
+                                            userAppointments.map((app) => (
+                                                <TableRow key={app.id}>
+                                                    <TableCell className="font-medium">
+                                                        {app.start_date && app.end_date ?
+                                                            `${format(new Date(app.start_date), "dd/MM/yy")} - ${format(new Date(app.end_date), "dd/MM/yy")}`
+                                                            : 'Data Inválida'
+                                                        }
+                                                    </TableCell>
+                                                    <TableCell className="capitalize">{app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer'}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')} className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
+                                                            {app.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow><TableCell colSpan={3} className="h-24 text-center">Nenhum agendamento encontrado.</TableCell></TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>

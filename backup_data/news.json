@@ -1,0 +1,18 @@
+[
+  {
+    "id": 3,
+    "created_at": "2025-12-17T20:58:51.520038+00:00",
+    "title": "Nosso Site Está No Ar!",
+    "summary": "Sejam Bem vindos Ao Site da ASFUS!",
+    "content_html": "<html>\n</html>",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/content-images/content-images/6spdb3g7335.avif"
+  },
+  {
+    "id": 5,
+    "created_at": "2025-12-18T02:05:53.861943+00:00",
+    "title": "Siga-nos no Instagram",
+    "summary": "https://www.instagram.com/asfus_associacaosuape/",
+    "content_html": "p",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/content-images/content-images/7fx7085rq0w.png"
+  }
+]

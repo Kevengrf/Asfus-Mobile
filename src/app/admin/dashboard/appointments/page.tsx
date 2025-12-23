@@ -42,15 +42,15 @@ export default function AdminAppointmentsPage() {
         .from("appointments")
         .select(`id, start_date, end_date, type, house_number, status, profiles (nome_completo, email)`)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
-      
+
       if (data) setAppointments(data as unknown as Appointment[]);
 
     } catch (error: any) {
-        alert(`Erro ao buscar agendamentos: ${error.message}`);
+      alert(`Erro ao buscar agendamentos: ${error.message}`);
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   }, []);
 
@@ -69,11 +69,11 @@ export default function AdminAppointmentsPage() {
 
   const handleExport = () => {
     const dataToExport = appointments.map(app => ({
-        "Nome do Associado": app.profiles?.nome_completo || "N/A",
-        "Email": app.profiles?.email || "N/A",
-        "Período": `${app.start_date ? format(new Date(app.start_date), "dd/MM/yyyy") : ''} - ${app.end_date ? format(new Date(app.end_date), "dd/MM/yyyy") : ''}`,
-        "Tipo de Uso": app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer',
-        "Status": app.status,
+      "Nome do Associado": app.profiles?.nome_completo || "N/A",
+      "Email": app.profiles?.email || "N/A",
+      "Período": `${app.start_date ? format(new Date(app.start_date), "dd/MM/yyyy") : ''} - ${app.end_date ? format(new Date(app.end_date), "dd/MM/yyyy") : ''}`,
+      "Tipo de Uso": app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer',
+      "Status": app.status,
     }));
 
     const csv = Papa.unparse(dataToExport);
@@ -92,63 +92,110 @@ export default function AdminAppointmentsPage() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-            <CardTitle>Gerenciamento de Agendamentos</CardTitle>
-            <CardDescription>Aprove, rejeite e exporte as solicitações de reserva.</CardDescription>
+          <CardTitle>Gerenciamento de Agendamentos</CardTitle>
+          <CardDescription>Aprove, rejeite e exporte as solicitações de reserva.</CardDescription>
         </div>
         <Button onClick={handleExport} disabled={appointments.length === 0}>
-            <Download className="mr-2 h-4 w-4"/>
-            Exportar CSV
+          <Download className="mr-2 h-4 w-4" />
+          Exportar CSV
         </Button>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin"/></div>
+          <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Associado</TableHead>
-                <TableHead>Período Solicitado</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Mobile View: Cards */}
+            <div className="grid grid-cols-1 gap-4 md:hidden">
               {appointments.length > 0 ? (
                 appointments.map((app) => (
-                  <TableRow key={app.id}>
-                    <TableCell className="font-medium">
-                      {app.profiles?.nome_completo || 'N/A'}
-                      <div className="text-sm text-muted-foreground">{app.profiles?.email}</div>
-                    </TableCell>
-                    <TableCell>{app.start_date && app.end_date ? `${format(new Date(app.start_date), "dd/MM/yy", { locale: ptBR })} - ${format(new Date(app.end_date), "dd/MM/yy", { locale: ptBR })}` : 'N/A'}</TableCell>
-                    <TableCell className="capitalize">{app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer'}</TableCell>
-                    <TableCell>
-                      <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')}
-                             className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
-                        {app.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
+                  <Card key={app.id} className="shadow-sm border">
+                    <CardHeader className="p-4 pb-2">
+                      <div className="flex justify-between items-start">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-base">{app.profiles?.nome_completo || 'N/A'}</span>
+                          <span className="text-xs text-muted-foreground">{app.profiles?.email}</span>
+                        </div>
+                        <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')}
+                          className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
+                          {app.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2 text-sm space-y-2">
+                      <div>
+                        <span className="font-semibold block text-gray-600">Período:</span>
+                        {app.start_date && app.end_date ? `${format(new Date(app.start_date), "dd/MM/yy", { locale: ptBR })} - ${format(new Date(app.end_date), "dd/MM/yy", { locale: ptBR })}` : 'N/A'}
+                      </div>
+                      <div>
+                        <span className="font-semibold block text-gray-600">Tipo:</span>
+                        <span className="capitalize">{app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer'}</span>
+                      </div>
                       {app.status === 'pendente' && (
-                        <>
-                          <Button variant="outline" size="sm" onClick={() => handleUpdateStatus(app.id, 'aprovado')}>Aprovar</Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleUpdateStatus(app.id, 'rejeitado')}>Rejeitar</Button>
-                        </>
+                        <div className="pt-4 flex gap-2 justify-end border-t mt-2">
+                          <Button variant="outline" size="sm" className="w-full" onClick={() => handleUpdateStatus(app.id, 'aprovado')}>Aprovar</Button>
+                          <Button variant="destructive" size="sm" className="w-full" onClick={() => handleUpdateStatus(app.id, 'rejeitado')}>Rejeitar</Button>
+                        </div>
                       )}
-                    </TableCell>
-                  </TableRow>
+                    </CardContent>
+                  </Card>
                 ))
               ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    Nenhum agendamento encontrado.
-                  </TableCell>
-                </TableRow>
+                <div className="p-8 text-center text-muted-foreground border rounded-lg bg-slate-50">
+                  Nenhum agendamento.
+                </div>
               )}
-            </TableBody>
-          </Table>
+            </div>
+
+            {/* Desktop View: Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Associado</TableHead>
+                    <TableHead>Período Solicitado</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {appointments.length > 0 ? (
+                    appointments.map((app) => (
+                      <TableRow key={app.id}>
+                        <TableCell className="font-medium">
+                          {app.profiles?.nome_completo || 'N/A'}
+                          <div className="text-sm text-muted-foreground">{app.profiles?.email}</div>
+                        </TableCell>
+                        <TableCell>{app.start_date && app.end_date ? `${format(new Date(app.start_date), "dd/MM/yy", { locale: ptBR })} - ${format(new Date(app.end_date), "dd/MM/yy", { locale: ptBR })}` : 'N/A'}</TableCell>
+                        <TableCell className="capitalize">{app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer'}</TableCell>
+                        <TableCell>
+                          <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')}
+                            className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
+                            {app.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          {app.status === 'pendente' && (
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => handleUpdateStatus(app.id, 'aprovado')}>Aprovar</Button>
+                              <Button variant="destructive" size="sm" onClick={() => handleUpdateStatus(app.id, 'rejeitado')}>Rejeitar</Button>
+                            </>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        Nenhum agendamento encontrado.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

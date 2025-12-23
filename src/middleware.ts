@@ -55,7 +55,50 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  // Refresh session
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const url = request.nextUrl.clone()
+  const path = url.pathname
+
+  // 1. Protected Routes (require login)
+  // Exclude /admin/login from protection so users can actually log in
+  // Also exclude /login and /register obviously
+  const isAdminLogin = path === '/admin/login'
+  const isAuthPage = path === '/login' || path === '/register' || path === '/first-access'
+
+  // Protect /admin (but not login) and /dashboard
+  const isProtectedRoute = (path.startsWith('/admin') && !isAdminLogin) || path.startsWith('/dashboard')
+
+  if (isProtectedRoute && !user) {
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // 2. Admin Routes (require 'admin' role)
+  if (path.startsWith('/admin') && !isAdminLogin && user) {
+    // Check metadata first (fastest)
+    const role = user.user_metadata?.role
+
+    // If user is NOT admin
+    if (role !== 'admin') {
+      console.log(`Unauthorized access to ${path} by user ${user.id} (role: ${role})`)
+      url.pathname = '/dashboard' // Redirect to user dashboard
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // 3. Prevent logged-in users from visiting login/register (optional UX improvement)
+  if ((isAuthPage || isAdminLogin) && user) {
+    const role = user.user_metadata?.role
+    if (role === 'admin') {
+      url.pathname = '/admin/dashboard'
+      return NextResponse.redirect(url)
+    } else {
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
+  }
 
   return response
 }

@@ -43,13 +43,18 @@ export function Navbar() {
         </nav>
 
         <div className="hidden lg:flex items-center gap-4">
-          {authLinks.map((link) => (
-            <Button key={link.href} variant="ghost" asChild>
-              <Link href={link.href} className="text-slate-700 hover:text-blue-700">
-                {link.label}
-              </Link>
-            </Button>
-          ))}
+          <Button variant="ghost" asChild>
+            <Link href="/login" className="text-slate-700 hover:text-blue-700">
+              Login Associado
+            </Link>
+          </Button>
+
+          <Button variant="ghost" asChild>
+            <Link href="/admin/login" className="text-slate-700 hover:text-blue-700 font-semibold text-blue-900">
+              Login Admin
+            </Link>
+          </Button>
+
           <Button
             asChild
             className="bg-[#003366] text-white rounded-full px-6 hover:bg-blue-800"

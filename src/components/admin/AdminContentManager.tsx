@@ -50,7 +50,7 @@ export function AdminContentManager<T extends { id: number; title?: string; name
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
-  
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (e.target.type === 'file') {
       setSelectedFile((e.target as HTMLInputElement).files?.[0] || null);
@@ -61,16 +61,16 @@ export function AdminContentManager<T extends { id: number; title?: string; name
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     for (const field of fields) {
-        if (field.required && !formState[field.name] && field.type !== 'image') {
-            setError(`O campo "${field.label}" é obrigatório.`);
-            return;
-        }
-        if (field.required && field.type === 'image' && !selectedFile) {
-            setError(`O campo "${field.label}" é obrigatório.`);
-            return;
-        }
+      if (field.required && !formState[field.name] && field.type !== 'image') {
+        setError(`O campo "${field.label}" é obrigatório.`);
+        return;
+      }
+      if (field.required && field.type === 'image' && !selectedFile) {
+        setError(`O campo "${field.label}" é obrigatório.`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -111,7 +111,7 @@ export function AdminContentManager<T extends { id: number; title?: string; name
       setLoading(false);
     }
   };
-  
+
   // Pagination logic
   const lastItemIndex = currentPage * itemsPerPage;
   const firstItemIndex = lastItemIndex - itemsPerPage;
@@ -195,7 +195,45 @@ export function AdminContentManager<T extends { id: number; title?: string; name
             <p>Nenhum(a) {contentType.toLowerCase()} encontrado(a).</p>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Mobile View: Cards */}
+              <div className="grid grid-cols-1 gap-4 md:hidden">
+                {currentItems.map((item) => (
+                  <Card key={item.id} className="shadow-sm border">
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-base font-bold text-blue-900">
+                        #{item.id}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2 text-sm space-y-2">
+                      {displayFields.map((field) => (
+                        field.key !== 'id' && (
+                          <div key={field.key} className="flex flex-col">
+                            <span className="font-semibold text-gray-500 text-xs uppercase">{field.label}</span>
+                            <span className="break-all">
+                              {/* @ts-ignore */}
+                              {item[field.key] instanceof Date ? item[field.key].toLocaleDateString() : String(item[field.key] ?? '')}
+                            </span>
+                          </div>
+                        )
+                      ))}
+                      <div className="pt-4 border-t mt-2 flex justify-end">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleDelete(item.id)}
+                          disabled={loading}
+                        >
+                          Deletar
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop View: Table */}
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -210,8 +248,8 @@ export function AdminContentManager<T extends { id: number; title?: string; name
                       <TableRow key={item.id}>
                         {displayFields.map((field) => (
                           <TableCell key={field.key}>
-                              {/* @ts-ignore */}
-                              {item[field.key] instanceof Date ? item[field.key].toLocaleDateString() : String(item[field.key] ?? '')}
+                            {/* @ts-ignore */}
+                            {item[field.key] instanceof Date ? item[field.key].toLocaleDateString() : String(item[field.key] ?? '')}
                           </TableCell>
                         ))}
                         <TableCell className="text-right">

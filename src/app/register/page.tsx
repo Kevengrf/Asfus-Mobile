@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase/client"; // Importamos nosso cliente
+import { submitRegistration } from "./actions";
 
 export default function RegisterPage() {
     const [isLoading, setIsLoading] = React.useState(false);
@@ -26,74 +26,37 @@ export default function RegisterPage() {
         setIsLoading(true);
         setError(null);
 
-        const form = event.currentTarget;
-        const formData = new FormData(form);
-        const nome_completo = formData.get("nome") as string; // Changed from full-name
-        const cpf = formData.get("cpf") as string;
-        const codtipo = formData.get("codtipo") as string;
-        const chapa = formData.get("chapa") as string;
-        const dt_nasc = formData.get("dt_nasc") as string;
-        const sexo = formData.get("sexo") as string;
-        const telefone1 = formData.get("telefone1") as string;
-        const email = formData.get("email") as string;
-        const nome_dependente = formData.get("nome_dependente") as string;
-        const sexo_dependente = formData.get("sexo_dependente") as string;
-        const grauparentesco_dependente = formData.get("grauparentesco_dependente") as string;
-        const data_nascimento_dependente = formData.get("data_nascimento_dependente") as string;
+        const formData = new FormData(event.currentTarget);
 
-        // Auto-generate password from CPF (first 5 digits)
-        const cleanCpf = cpf.replace(/\D/g, '');
-        let password = 'Asfus@123456'; // Fallback
-        if (cleanCpf.length >= 6) {
-            password = `Asfus@${cleanCpf.substring(0, 6)}`;
-        } else {
-            password = 'Asfus@123456';
-        }
-
-        // Usando o cliente Supabase para registrar
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                // Dados extras que a nossa função SQL vai usar
-                // Dados extras que a nossa função SQL vai usar
-                data: {
-                    nome_completo,
-                    cpf,
-                    codtipo,
-                    chapa,
-                    dt_nasc,
-                    sexo,
-                    telefone1,
-                    nome_dependente: nome_dependente || null,
-                    sexo_dependente: sexo_dependente || null,
-                    grauparentesco_dependente: grauparentesco_dependente || null,
-                    data_nascimento_dependente: data_nascimento_dependente || null,
-                }
-            }
-        });
+        // Server Action
+        const result = await submitRegistration(formData);
 
         setIsLoading(false);
 
-        if (error) {
-            setError(error.message);
+        if (result?.error) {
+            setError(result.error);
         } else {
-            // Sucesso! O Supabase enviará um email de confirmação.
             setSuccess(true);
         }
     }
 
-    // Se o cadastro foi bem-sucedido, mostramos uma mensagem de sucesso.
     if (success) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
                 <Card className="w-full max-w-md">
                     <CardHeader>
-                        <CardTitle className="text-2xl">Verifique seu Email</CardTitle>
+                        <CardTitle className="text-2xl">Solicitação Enviada!</CardTitle>
                         <CardDescription>
-                            Enviamos um link de confirmação para o seu email. Por favor, clique no link para ativar sua conta antes de prosseguir com a aprovação da diretoria.
+                            Seu cadastro foi recebido com sucesso e está em análise.
+                            <br /><br />
+                            Você receberá um email quando sua conta for aprovada. Após a aprovação, acesse o &quot;Primeiro Acesso&quot; para definir sua senha.
                         </CardDescription>
                     </CardHeader>
+                    <CardFooter className="flex justify-center">
+                        <Link href="/">
+                            <Button>Voltar para o Início</Button>
+                        </Link>
+                    </CardFooter>
                 </Card>
             </div>
         )
@@ -105,7 +68,7 @@ export default function RegisterPage() {
                 <CardHeader>
                     <CardTitle className="text-2xl">Solicitação de Cadastro</CardTitle>
                     <CardDescription>
-                        Preencha os dados para solicitar sua associação.
+                        Preencha os dados abaixo. Seus dados serão enviados para análise da diretoria.
                     </CardDescription>
                 </CardHeader>
                 <form onSubmit={handleSubmit}>
@@ -175,6 +138,7 @@ export default function RegisterPage() {
                             <Label htmlFor="data_nascimento_dependente">Data de Nascimento do Dependente</Label>
                             <Input id="data_nascimento_dependente" name="data_nascimento_dependente" type="date" />
                         </div>
+
                         {error && <p className="text-sm text-red-500">{error}</p>}
                     </CardContent>
                     <CardFooter className="flex flex-col items-center gap-4">

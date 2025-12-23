@@ -1,0 +1,122 @@
+[
+  {
+    "id": 5,
+    "created_at": "2025-12-18T01:54:06.925601+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022845882_galery1.jpg",
+    "caption": null
+  },
+  {
+    "id": 6,
+    "created_at": "2025-12-18T01:54:17.242854+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022856199_galery2.jpg",
+    "caption": null
+  },
+  {
+    "id": 7,
+    "created_at": "2025-12-18T01:54:26.693499+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022866082_galery3.jpg",
+    "caption": null
+  },
+  {
+    "id": 9,
+    "created_at": "2025-12-18T01:54:45.114307+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022884283_galery5.jpg",
+    "caption": null
+  },
+  {
+    "id": 10,
+    "created_at": "2025-12-18T01:54:58.251694+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022897667_galery7.jpg",
+    "caption": null
+  },
+  {
+    "id": 11,
+    "created_at": "2025-12-18T01:55:08.600086+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022907683_galery8.jpg",
+    "caption": null
+  },
+  {
+    "id": 12,
+    "created_at": "2025-12-18T01:55:18.792987+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022918133_galery9.jpg",
+    "caption": null
+  },
+  {
+    "id": 13,
+    "created_at": "2025-12-18T01:55:27.303772+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022926267_galery10.jpg",
+    "caption": null
+  },
+  {
+    "id": 14,
+    "created_at": "2025-12-18T01:55:48.216748+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022947234_galery11.jpg",
+    "caption": null
+  },
+  {
+    "id": 15,
+    "created_at": "2025-12-18T01:55:58.297653+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022957600_galery24.jpg",
+    "caption": null
+  },
+  {
+    "id": 16,
+    "created_at": "2025-12-18T01:56:08.596381+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022967934_galery14.jpg",
+    "caption": null
+  },
+  {
+    "id": 17,
+    "created_at": "2025-12-18T01:56:39.160477+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766022998401_galery23.jpg",
+    "caption": null
+  },
+  {
+    "id": 18,
+    "created_at": "2025-12-18T01:56:51.234341+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766023010401_home1.jpg",
+    "caption": null
+  },
+  {
+    "id": 19,
+    "created_at": "2025-12-18T01:58:09.877062+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766023088586_galery31.jpg",
+    "caption": null
+  },
+  {
+    "id": 20,
+    "created_at": "2025-12-18T01:58:22.143824+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766023101152_galery18.jpg",
+    "caption": null
+  },
+  {
+    "id": 21,
+    "created_at": "2025-12-18T01:58:38.250717+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766023117136_galery20.jpg",
+    "caption": null
+  },
+  {
+    "id": 22,
+    "created_at": "2025-12-18T01:58:47.384649+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766023126154_galery21.jpg",
+    "caption": null
+  },
+  {
+    "id": 23,
+    "created_at": "2025-12-18T01:59:00.891189+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766023139770_galery26.jpg",
+    "caption": null
+  },
+  {
+    "id": 24,
+    "created_at": "2025-12-18T01:59:17.983033+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766023156920_galery27.jpg",
+    "caption": null
+  },
+  {
+    "id": 25,
+    "created_at": "2025-12-18T01:59:32.555495+00:00",
+    "image_url": "https://wbckbrustuilnfnwqgcc.supabase.co/storage/v1/object/public/galeria/gallery/1766023171837_galery16.jpg",
+    "caption": null
+  }
+]

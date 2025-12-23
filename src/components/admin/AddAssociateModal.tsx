@@ -103,8 +103,18 @@ export function AddAssociateModal({ onAssociateAdded }: { onAssociateAdded: () =
               <Input id="email" name="email" type="email" placeholder="email@associado.com" required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">Senha Provisória</Label>
-              <Input id="password" name="password" type="text" placeholder="Asfus@ + 6 primeiros digitos do CPF" readOnly className="bg-muted" />
+              <Label htmlFor="password">Senha Inicial</Label>
+              <Input
+                id="password"
+                name="password"
+                type="text"
+                placeholder="Gerada automaticamente (Asfus@...)"
+                readOnly
+                className="bg-muted"
+              />
+              <p className="text-xs text-muted-foreground">
+                O usuário poderá alterar esta senha no &quot;Primeiro Acesso&quot;.
+              </p>
             </div>
 
             {error && <p className="text-sm text-red-500">{error}</p>}
