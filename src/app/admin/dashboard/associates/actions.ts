@@ -15,14 +15,55 @@ export async function addAssociate(formData: FormData) {
   const email = formData.get("email") as string;
   let password = formData.get("password") as string;
 
+  // Sanitiza o CPF (remove tudo que não for número)
+  const cleanCpf = cpf.replace(/\D/g, '');
+
   if (!email || !nome_completo) {
     return { error: 'Campos obrigatórios estão faltando.' };
   }
 
+  // --- Limpeza de Perfis Orfãos (Fix Database Error) ---
+  console.log(`[addAssociate] Iniciando criação para ${email} / CPF: ${cleanCpf}`);
+
+  // 1. Verificação por Email
+  const { data: existingProfileByEmail } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .single();
+
+  if (existingProfileByEmail) {
+    const { data: authUser, error: authCheckError } = await supabaseAdmin.auth.admin.getUserById(existingProfileByEmail.id);
+    if (authCheckError || !authUser?.user) {
+      console.log(`[addAssociate] Perfil órfão encontrado por Email (${email}). Removendo...`);
+      await supabaseAdmin.from('profiles').delete().eq('id', existingProfileByEmail.id);
+    }
+  }
+
+  // 2. Verificação por CPF
+  if (cleanCpf) {
+    const { data: existingProfileByCPF } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email')
+      .eq('cpf', cleanCpf)
+      .single();
+
+    if (existingProfileByCPF) {
+      const { data: authUserCPF, error: authErrorCPF } = await supabaseAdmin.auth.admin.getUserById(existingProfileByCPF.id);
+
+      if (authErrorCPF || !authUserCPF?.user) {
+        console.log(`[addAssociate] Perfil órfão encontrado por CPF (${cleanCpf}). Removendo...`);
+        await supabaseAdmin.from('profiles').delete().eq('id', existingProfileByCPF.id);
+      } else {
+        if (existingProfileByCPF.email !== email) {
+          return { error: `Este CPF já está sendo usado pelo usuário: ${existingProfileByCPF.email}` };
+        }
+      }
+    }
+  }
+
   // Set default password if not provided
   if (!password) {
-    // Clean CPF for password generation (first 5 digits)
-    const cleanCpf = cpf.replace(/\D/g, '');
     if (cleanCpf.length >= 6) {
       password = `Asfus@${cleanCpf.substring(0, 6)}`;
     } else {
@@ -35,6 +76,7 @@ export async function addAssociate(formData: FormData) {
     email,
     password,
     email_confirm: true,
+    user_metadata: { role: 'user', status: 'ativo', nome_completo }
   });
 
   if (authError) {
@@ -42,22 +84,22 @@ export async function addAssociate(formData: FormData) {
   }
   const user = authData.user;
 
-  // 2. Update the profile that was created by the trigger
+  // 2. Upsert profile
   const { error: profileError } = await supabaseAdmin
     .from('profiles')
-    .update({
+    .upsert({
+      id: user.id,
       role: 'user',
       status: 'ativo',
       nome_completo,
-      cpf,
+      cpf: cleanCpf,
       email,
       telefone: telefone1,
       codtipo,
       chapa,
       dt_nasc,
       sexo
-    })
-    .eq('id', user.id);
+    });
 
   if (profileError) {
     // If updating profile fails, delete the created auth user for consistency
@@ -82,6 +124,15 @@ export async function promoteToAdmin(userId: string) {
   if (error) {
     console.error('Erro ao promover para admin:', error.message);
     return { error: `Erro ao promover usuário: ${error.message}` };
+  }
+
+  // 2. Sync with Auth Metadata (Required for Middleware/Login redirection)
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    user_metadata: { role: 'admin' }
+  });
+
+  if (authError) {
+    console.error('Warning: Failed to sync admin role to Auth metadata:', authError.message);
   }
 
   revalidatePath('/admin/dashboard/associates');

@@ -28,7 +28,10 @@ export async function createAdminUser(
 
 
   // --- Validação dos Dados ---
-  if (!name || !email || !password || !cpf) {
+  // Sanitiza o CPF (remove tudo que não for número)
+  const cleanCpf = cpf.replace(/\D/g, '');
+
+  if (!name || !email || !password || !cleanCpf) {
     return {
       message: 'Nome, Email, CPF e Senha são obrigatórios.',
       type: 'error',
@@ -41,15 +44,59 @@ export async function createAdminUser(
     };
   }
 
+  // --- Limpeza de Perfis Orfãos (Fix Database Error) ---
+  console.log(`[createAdminUser] Iniciando criação para ${email} / CPF: ${cleanCpf}`);
+
+  // 1. Verificação por Email
+  const { data: existingProfileByEmail } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .single();
+
+  if (existingProfileByEmail) {
+    const { data: authUser, error: authCheckError } = await supabaseAdmin.auth.admin.getUserById(existingProfileByEmail.id);
+    if (authCheckError || !authUser?.user) {
+      console.log(`[createAdminUser] Perfil órfão encontrado por Email (${email}). Removendo...`);
+      await supabaseAdmin.from('profiles').delete().eq('id', existingProfileByEmail.id);
+    }
+  }
+
+  // 2. Verificação por CPF (CRÍTICO: Evita erro de Unique Constraint no Update)
+  const { data: existingProfileByCPF } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email')
+    .eq('cpf', cleanCpf) // Busca perfil com o mesmo CPF (LIMPO)
+    .single();
+
+  if (existingProfileByCPF) {
+    // Verifica se é órfão
+    const { data: authUserCPF, error: authErrorCPF } = await supabaseAdmin.auth.admin.getUserById(existingProfileByCPF.id);
+
+    if (authErrorCPF || !authUserCPF?.user) {
+      console.log(`[createAdminUser] Perfil órfão encontrado por CPF (${cleanCpf}). Removendo...`);
+      await supabaseAdmin.from('profiles').delete().eq('id', existingProfileByCPF.id);
+    } else {
+      // Se NÃO é órfão, então é um conflito real! Devemos impedir a criação.
+      if (existingProfileByCPF.email !== email) {
+        return {
+          message: `Este CPF já está sendo usado pelo usuário: ${existingProfileByCPF.email}`,
+          type: 'error'
+        };
+      }
+    }
+  }
+
   // --- Criação do Usuário no Auth ---
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
     email_confirm: true, // Auto-confirma o email
+    user_metadata: { role: 'admin', status: 'ativo', nome_completo: name } // Passa metadata direto para o trigger usar
   });
 
   if (authError) {
-    console.error('Erro ao criar usuário no Auth:', authError.message);
+    console.error('[createAdminUser] Erro ao criar usuário no Auth:', authError.message);
     return {
       message: `Erro ao criar autenticação: ${authError.message}`,
       type: 'error',
@@ -60,22 +107,23 @@ export async function createAdminUser(
     return { message: 'Não foi possível criar o usuário.', type: 'error' };
   }
 
-  // --- Inserção do Perfil na Tabela 'profiles' ---
+  // --- Inserção/Atualização do Perfil na Tabela 'profiles' ---
+  // Usamos upsert para garantir que, mesmo que o trigger tenha falhado ou criado parcial, nós forçamos o estado correto.
   const { error: profileError } = await supabaseAdmin
     .from('profiles')
-    .update({
+    .upsert({
+      id: user.id, // Garante link com Auth
       nome_completo: name,
       role: 'admin',
       status: 'ativo',
-      cpf,
+      cpf: cleanCpf, // CPF Limpo
       codtipo,
       chapa,
       dt_nasc,
       sexo,
       telefone: telefone1,
-      email, // Ensure email is saved to profile
-    })
-    .eq('id', user.id);
+      email, // Garante email salvo
+    });
 
   if (profileError) {
     console.error('Erro ao atualizar perfil:', profileError.message);

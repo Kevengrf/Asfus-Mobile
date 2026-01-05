@@ -35,9 +35,9 @@ export default function RootLayout({
         )}
       >
         <div className="flex flex-col min-h-screen">
-          {!isAdminPage && <Navbar />}
+          {!isAdminPage && !pathname.startsWith('/videos') && <Navbar />}
           <main className="flex-grow">{children}</main>
-          {!isAdminPage && <Footer />}
+          {!isAdminPage && !pathname.startsWith('/videos') && <Footer />}
         </div>
       </body>
     </html>

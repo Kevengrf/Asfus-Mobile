@@ -20,8 +20,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase/client";
-import { Download, Loader2, ShieldCheck, Trash2, KeyRound } from "lucide-react";
+import { Download, Loader2, ShieldCheck, Trash2, KeyRound, Eye } from "lucide-react";
 import { AddAssociateModal } from "@/components/admin/AddAssociateModal";
+import { ViewUserModal } from "@/components/admin/ViewUserModal";
 import { promoteToAdmin, deleteAssociate, resetPassword } from "./actions";
 
 type Profile = {
@@ -37,6 +38,7 @@ type Profile = {
   chapa: string | null;
   dt_nasc: string | null;
   sexo: string | null;
+  dependentes: any[] | null;
 };
 
 export default function AssociatesPage() {
@@ -47,6 +49,7 @@ export default function AssociatesPage() {
   const [isPromoting, setIsPromoting] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState<string | null>(null);
   const [isReseting, setIsReseting] = React.useState<string | null>(null);
+  const [viewingUser, setViewingUser] = React.useState<Profile | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const itemsPerPage = 10;
 
@@ -141,6 +144,11 @@ export default function AssociatesPage() {
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
           <AddAssociateModal onAssociateAdded={fetchProfiles} />
+          <ViewUserModal
+            user={viewingUser}
+            open={!!viewingUser}
+            onOpenChange={(open) => !open && setViewingUser(null)}
+          />
           <Button onClick={handleExportXLSX} disabled={filteredProfiles.length === 0} variant="outline" className="w-full sm:w-auto">
             <Download className="mr-2 h-4 w-4" />
             Exportar XLSX
@@ -198,6 +206,9 @@ export default function AssociatesPage() {
                         {isDeleting === profile.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       </Button>
                     )}
+                    <Button size="sm" variant="ghost" onClick={() => setViewingUser(profile)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -241,6 +252,9 @@ export default function AssociatesPage() {
                           <Button size="sm" variant="outline" onClick={() => handleResetPassword(profile.id)} disabled={isReseting === profile.id} className="mr-2" title="Resetar senha para padrão">
                             {isReseting === profile.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
                           </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setViewingUser(profile)} className="mr-2" title="Ver Detalhes">
+                            <Eye className="h-4 w-4 text-blue-600" />
+                          </Button>
                           <Button size="sm" onClick={() => handlePromote(profile.id)} disabled={isPromoting === profile.id}>
                             {isPromoting === profile.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
                             Tornar Admin
@@ -269,7 +283,8 @@ export default function AssociatesPage() {
             </div>
           </div>
         </>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 }

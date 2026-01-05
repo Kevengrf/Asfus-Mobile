@@ -13,21 +13,55 @@ export async function submitRegistration(formData: FormData) {
     const telefone1 = formData.get("telefone1") as string;
     const email = formData.get("email") as string;
 
-    const nome_dependente = formData.get("nome_dependente") as string;
-    const sexo_dependente = formData.get("sexo_dependente") as string;
-    const grauparentesco_dependente = formData.get("grauparentesco_dependente") as string;
-    const data_nascimento_dependente = formData.get("data_nascimento_dependente") as string;
+    const dependentesHeader = formData.get("dependentes_json") as string;
+    let dependentesList: any[] = [];
+    try {
+        if (dependentesHeader) {
+            dependentesList = JSON.parse(dependentesHeader);
+        }
+    } catch (e) {
+        console.error("Error parsing dependentes:", e);
+    }
 
     // Validation
-    if (!cpf || !email || !nome_completo) {
+    const cleanCpf = cpf.replace(/\D/g, '');
+
+    if (!cleanCpf || !email || !nome_completo) {
         return { error: 'Campos obrigatórios faltando.' };
     }
 
-    // 1. Check if user already exists
+    // --- ORPHAN CLEANUP ---
+    // 1. Check Email Orphan
+    const { data: orphanEmail } = await supabaseAdmin.from('profiles').select('id').eq('email', email).single();
+    if (orphanEmail) {
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(orphanEmail.id);
+        if (!authUser?.user) {
+            console.log(`[Register] Orphan by Email ${email}. Cleaning up...`);
+            await supabaseAdmin.from('profiles').delete().eq('id', orphanEmail.id);
+        }
+    }
+    // 2. Check CPF Orphan
+    if (cleanCpf) {
+        const { data: orphanCPF } = await supabaseAdmin.from('profiles').select('id, email').eq('cpf', cleanCpf).single();
+        if (orphanCPF) {
+            const { data: authUserCPF } = await supabaseAdmin.auth.admin.getUserById(orphanCPF.id);
+            if (!authUserCPF?.user) {
+                console.log(`[Register] Orphan by CPF ${cleanCpf}. Cleaning up...`);
+                await supabaseAdmin.from('profiles').delete().eq('id', orphanCPF.id);
+            } else {
+                // Conflict
+                if (orphanCPF.email !== email) {
+                    return { error: `CPF já cadastrado para outro email: ${orphanCPF.email}` };
+                }
+            }
+        }
+    }
+
+    // 1. Check if user already exists (Double check after cleanup)
     const { data: existingProfiles, error: checkError } = await supabaseAdmin
         .from('profiles')
         .select('*')
-        .or(`cpf.eq.${cpf},email.eq.${email}`);
+        .or(`cpf.eq.${cleanCpf},email.eq.${email}`);
 
     if (existingProfiles && existingProfiles.length > 0) {
         return { error: 'Já existe um cadastro com este CPF ou Email.' };
@@ -54,10 +88,8 @@ export async function submitRegistration(formData: FormData) {
             sexo,
             telefone: telefone1,
             // Dependents
-            nome_dependente: nome_dependente || null,
-            sexo_dependente: sexo_dependente || null,
-            grauparentesco_dependente: grauparentesco_dependente || null,
-            data_nascimento_dependente: data_nascimento_dependente || null,
+            // Dependents - Saving list instead of flat fields
+            dependentes: dependentesList,
             // Status
             status: 'pendente', // Force pending
             role: 'user'
@@ -85,21 +117,14 @@ export async function submitRegistration(formData: FormData) {
             dt_nasc,
             sexo,
             telefone: telefone1,
-            dependentes: nome_dependente ? [{
-                nome: nome_dependente,
-                sexo: sexo_dependente,
-                parentesco: grauparentesco_dependente,
-                dt_nasc: data_nascimento_dependente
-            }] : [], // Adjust jsonb structure if needed, or flat fields
-            // Assuming flat fields based on register page usage? 
-            // Register page passed them to metadata. Trigger might have mapped them. 
-            // Let's assume Trigger mapped them or flat fields exist. 
-            // Based on previous files, profiles has flat fields for ONE dependent?
-            // "nome_dependente", "sexo_dependente"... yes.
-            nome_dependente: nome_dependente || null,
-            sexo_dependente: sexo_dependente || null,
-            grauparentesco_dependente: grauparentesco_dependente || null,
-            data_nascimento_dependente: data_nascimento_dependente || null,
+            dependentes: dependentesList, // Save dynamic list
+
+            // Remove flat fields from DB save if schema doesn't require them or if we want to clean up
+            // Keeping them null to avoid errors if columns exist and are not nullable (unlikely for dependents)
+            nome_dependente: null,
+            sexo_dependente: null,
+            grauparentesco_dependente: null,
+            data_nascimento_dependente: null,
 
             status: 'pendente',
             role: 'user'

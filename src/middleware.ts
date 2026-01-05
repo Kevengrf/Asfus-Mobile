@@ -71,7 +71,11 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = (path.startsWith('/admin') && !isAdminLogin) || path.startsWith('/dashboard')
 
   if (isProtectedRoute && !user) {
-    url.pathname = '/login'
+    if (path.startsWith('/admin')) {
+      url.pathname = '/admin/login'
+    } else {
+      url.pathname = '/login'
+    }
     return NextResponse.redirect(url)
   }
 

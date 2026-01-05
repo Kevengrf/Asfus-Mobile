@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Carousel } from "@/components/ui/carousel";
 import { Target, Waves, PartyPopper } from "lucide-react";
 import { getAllNews, getAllPartners, getAllEvents } from "@/lib/supabase/client"; // Import Supabase client functions
@@ -120,27 +121,27 @@ export default function Home() {
       {/* About Section */}
       <section className="py-16 md:py-24 bg-slate-50 dark:bg-slate-900">
         <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-8 text-blue-900 dark:text-blue-300">Um Espaço de Lazer e União para a Família</h2>
-            <p className="max-w-3xl mx-auto text-lg text-gray-600 dark:text-gray-300 mb-12">
-                A ASFUS é mais do que uma associação; é uma comunidade que valoriza o bem-estar e a integração de seus associados e suas famílias. Oferecemos um espaço seguro e acolhedor, com opções de lazer, eventos sociais e convênios que proporcionam tranquilidade e qualidade de vida.
-            </p>
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-                <div className="flex flex-col items-center">
-                    <Target className="h-12 w-12 text-blue-600 mb-4" />
-                    <h3 className="text-xl font-bold mb-2">Atividades Recreativas</h3>
-                    <p className="text-muted-foreground">Diversas opções de lazer para todas as idades</p>
-                </div>
-                <div className="flex flex-col items-center">
-                    <Waves className="h-12 w-12 text-blue-600 mb-4" />
-                    <h3 className="text-xl font-bold mb-2">Piscina e Esportes</h3>
-                    <p className="text-muted-foreground">Infraestrutura completa para prática esportiva</p>
-                </div>
-                <div className="flex flex-col items-center">
-                    <PartyPopper className="h-12 w-12 text-blue-600 mb-4" />
-                    <h3 className="text-xl font-bold mb-2">Eventos Sociais</h3>
-                    <p className="text-muted-foreground">Festejos e confraternizações regulares</p>
-                </div>
+          <h2 className="text-3xl md:text-4xl font-bold mb-8 text-blue-900 dark:text-blue-300">Um Espaço de Lazer e União para a Família</h2>
+          <p className="max-w-3xl mx-auto text-lg text-gray-600 dark:text-gray-300 mb-12">
+            A ASFUS é mais do que uma associação; é uma comunidade que valoriza o bem-estar e a integração de seus associados e suas famílias. Oferecemos um espaço seguro e acolhedor, com opções de lazer, eventos sociais e convênios que proporcionam tranquilidade e qualidade de vida.
+          </p>
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            <div className="flex flex-col items-center">
+              <Target className="h-12 w-12 text-blue-600 mb-4" />
+              <h3 className="text-xl font-bold mb-2">Atividades Recreativas</h3>
+              <p className="text-muted-foreground">Diversas opções de lazer para todas as idades</p>
             </div>
+            <div className="flex flex-col items-center">
+              <Waves className="h-12 w-12 text-blue-600 mb-4" />
+              <h3 className="text-xl font-bold mb-2">Piscina e Esportes</h3>
+              <p className="text-muted-foreground">Infraestrutura completa para prática esportiva</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <PartyPopper className="h-12 w-12 text-blue-600 mb-4" />
+              <h3 className="text-xl font-bold mb-2">Eventos Sociais</h3>
+              <p className="text-muted-foreground">Festejos e confraternizações regulares</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -209,6 +210,14 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* Mobile Video Feed FAB */}
+      <Link
+        href="/videos"
+        className="fixed bottom-6 right-6 z-50 md:hidden bg-black text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform animate-bounce"
+      >
+        <PartyPopper className="h-6 w-6 text-pink-500" />
+      </Link >
     </>
   );
 }

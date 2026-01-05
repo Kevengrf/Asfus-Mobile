@@ -3,6 +3,8 @@
 
 import { SchedulingSystem } from "@/components/SchedulingSystem";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
+import { Button } from "@/components/ui/button";
+import { logout } from "@/app/admin/actions";
 
 export default function MemberDashboardPage() {
   return (
@@ -15,7 +17,14 @@ export default function MemberDashboardPage() {
               Selecione um período de até 4 dias para lazer ou para uma das nossas 11 casas.
             </p>
           </div>
-          <ChangePasswordForm />
+          <div className="flex gap-2">
+            <ChangePasswordForm />
+            <form action={logout}>
+              <Button type="submit" variant="destructive">
+                Sair
+              </Button>
+            </form>
+          </div>
         </div>
       </div>
       <SchedulingSystem showHistory={true} />

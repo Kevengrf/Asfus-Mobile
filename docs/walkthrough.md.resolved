@@ -1,0 +1,30 @@
+# Verification: User Management Flows
+
+I have verified and fixed the logic for all three user management flows. Here is how you can test them to ensure everything is working as expected.
+
+## 1. Admin Creation (Fixed)
+**Goal**: Admin creates another admin, and they appear immediately in the list.
+1.  Go to **Admin Dashboard > Admins**.
+2.  Click **"Criar Novo Admin"**.
+3.  Fill in the form (Test Name: `Admin Teste`, CPF: `111.111.111-11`).
+4.  Click **"Salvar"**.
+5.  **Result**: The modal closes, the page auto-refreshes, and `Admin Teste` appears in the list instantly.
+
+## 2. Associate Creation (Fixed)
+**Goal**: Admin manually creates an associate.
+1.  Go to **Admin Dashboard > Associados**.
+2.  Click **"Criar Associado"**.
+3.  Fill in the form (Test Name: `Assoc Teste`, CPF: `222.222.222-22`).
+4.  Click **"Salvar"**.
+5.  **Result**: Success message appears. The user is created active with password `Asfus@222222`.
+
+## 3. Pre-registration & Approval (Verified)
+**Goal**: Public user registers, Admin approves, User sets password.
+1.  **Public**: Go to `/register` (Log out first).
+2.  Fill in the form (Test Name: `Pendente Teste`, CPF: `333.333.333-33`).
+3.  **Admin**: Log in as Admin. Go to **Dashboard > Início (Aprovações)**.
+4.  Find `Pendente Teste` in the "Solicitações Pendentes" list.
+5.  Click **"Aprovar"**.
+6.  **User**: Go to `/first-access`.
+7.  Enter CPF `333.333.333-33`.
+8.  **Result**: System recognizes the user is Active and allows setting a new password.

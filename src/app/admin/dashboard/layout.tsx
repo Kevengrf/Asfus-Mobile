@@ -16,20 +16,22 @@ import {
   Image, // Ícone para Galeria
   Shield, // Ícone para Admins
   CalendarPlus, // Ícone para Fazer Agendamento
+  Video, // Ícone para Vídeos
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const navLinks = [
-    { href: "/admin/dashboard", label: "Início / Aprovações", icon: Home },
-    { href: "/admin/dashboard/appointments", label: "Agendamentos", icon: CalendarCheck },
-    { href: "/admin/dashboard/news", label: "Notícias", icon: Newspaper },
-    { href: "/admin/dashboard/gallery", label: "Galeria", icon: Image }, // Link da Galeria
-    { href: "/admin/dashboard/partners", label: "Convênios", icon: Handshake },
-    { href: "/admin/dashboard/events", label: "Eventos", icon: Calendar },
-    { href: "/admin/dashboard/associates", label: "Associados", icon: Users },
-    { href: "/admin/dashboard/admins", label: "Admins", icon: Shield },
-    { href: "/admin/dashboard/fazer-agendamento", label: "Fazer Agendamento", icon: CalendarPlus },
+  { href: "/admin/dashboard", label: "Início / Aprovações", icon: Home },
+  { href: "/admin/dashboard/appointments", label: "Agendamentos", icon: CalendarCheck },
+  { href: "/admin/dashboard/news", label: "Notícias", icon: Newspaper },
+  { href: "/admin/dashboard/gallery", label: "Galeria", icon: Image },
+  { href: "/admin/dashboard/videos", label: "Vídeos (Mobile)", icon: Video }, // Link dos Vídeos
+  { href: "/admin/dashboard/partners", label: "Convênios", icon: Handshake },
+  { href: "/admin/dashboard/events", label: "Eventos", icon: Calendar },
+  { href: "/admin/dashboard/associates", label: "Associados", icon: Users },
+  { href: "/admin/dashboard/admins", label: "Admins", icon: Shield },
+  { href: "/admin/dashboard/fazer-agendamento", label: "Fazer Agendamento", icon: CalendarPlus },
 ];
 
 export default function DashboardLayout({
@@ -77,7 +79,7 @@ export default function DashboardLayout({
           </div>
         </div>
       </div>
-      
+
       {/* --- Main Content Area --- */}
       <div className="flex flex-col">
         {/* Mobile Header */}
@@ -92,9 +94,9 @@ export default function DashboardLayout({
             <SheetContent side="left" className="flex flex-col bg-blue-900 text-white p-0">
               <SheetHeader className="h-14 flex-row items-center border-b border-blue-800 px-4">
                 <SheetTitle>
-                    <Link href="/" className="flex items-center gap-2 font-semibold text-white" onClick={() => setIsSheetOpen(false)}>
-                        ASFUS Admin
-                    </Link>
+                  <Link href="/" className="flex items-center gap-2 font-semibold text-white" onClick={() => setIsSheetOpen(false)}>
+                    ASFUS Admin
+                  </Link>
                 </SheetTitle>
               </SheetHeader>
               <nav className="grid gap-2 text-lg font-medium p-4">
