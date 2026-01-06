@@ -4,7 +4,7 @@ import * as React from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
-import { addDays, differenceInDays, eachDayOfInterval } from "date-fns";
+import { addDays, differenceInDays, eachDayOfInterval, areIntervalsOverlapping } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -156,9 +156,9 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
             range.to = range.from;
         }
         else if (range?.from && range.to) {
-            if (differenceInDays(range.to, range.from) > 3) {
-                setFormMessage({ type: 'error', text: 'Você só pode selecionar no máximo 4 dias para casas.' });
-                setDateRange({ from: range.from, to: addDays(range.from, 3) });
+            if (differenceInDays(range.to, range.from) > 6) {
+                setFormMessage({ type: 'error', text: 'Você só pode selecionar no máximo 7 dias para apartamentos.' });
+                setDateRange({ from: range.from, to: addDays(range.from, 6) });
                 return;
             }
         }
@@ -228,7 +228,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
                 if (conflictingCasaError) throw conflictingCasaError;
                 if (conflictingCasa && conflictingCasa.length > 0) {
-                    throw new Error(`A Casa ${houseNumber} já possui uma reserva ou solicitação para este período.`);
+                    throw new Error(`O Apartamento ${houseNumber} já possui uma reserva ou solicitação para este período.`);
                 }
             }
             // The general check for 'lazer' and 'casa' full capacity is already handled by isDateDisabled visually
@@ -331,30 +331,36 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                     </Label>
                                     <Label className="flex items-center gap-2 cursor-pointer p-2 rounded-md has-[:checked]:bg-blue-100 has-[:checked]:border-blue-300 border-2 border-transparent transition-all">
                                         <input type="radio" name="appointmentType" value="casa" checked={appointmentType === 'casa'} onChange={() => setAppointmentType('casa')} className="sr-only" />
-                                        Uso Casa
+                                        Uso Apartamento
                                     </Label>
                                 </div>
                             </div>
                             {appointmentType === 'casa' && (
                                 <div className="space-y-2">
-                                    <Label htmlFor="house-number" className="font-semibold">Número da Casa:</Label>
+                                    <Label htmlFor="house-number" className="font-semibold">Número do Apartamento:</Label>
                                     <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                                         {Array.from({ length: 11 }, (_, i) => i + 1).map(num => {
                                             // Check status for this specific house in the selected range
                                             let status: 'livre' | 'ocupado' | 'pendente' = 'livre';
 
                                             if (dateRange?.from) {
-                                                const checkStartStr = format(dateRange.from, 'yyyy-MM-dd');
-                                                const checkEndStr = format(dateRange.to || dateRange.from, 'yyyy-MM-dd');
+                                                const checkStart = dateRange.from;
+                                                const checkEnd = dateRange.to || dateRange.from;
 
                                                 // Check against allAppointments
                                                 for (const app of allAppointments) {
                                                     if (app.type === 'casa' && app.house_number === num && app.status !== 'rejeitado' && app.start_date && app.end_date) {
-                                                        const appStartStr = app.start_date.substring(0, 10);
-                                                        const appEndStr = app.end_date.substring(0, 10);
+                                                        const appStart = parseSupabaseDate(app.start_date);
+                                                        const appEnd = parseSupabaseDate(app.end_date);
 
-                                                        // Check overlap
-                                                        if (appStartStr <= checkEndStr && appEndStr >= checkStartStr) {
+                                                        // Check overlap using date-fns helper for accuracy
+                                                        const isOverlapping = areIntervalsOverlapping(
+                                                            { start: checkStart, end: checkEnd },
+                                                            { start: appStart, end: appEnd },
+                                                            { inclusive: true }
+                                                        );
+
+                                                        if (isOverlapping) {
                                                             if (app.status === 'aprovado') status = 'ocupado';
                                                             else if (app.status === 'pendente' && status !== 'ocupado') status = 'pendente';
                                                         }
@@ -374,10 +380,10 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                                         ${status === 'ocupado' ? 'bg-red-200 border-red-300 text-red-900 opacity-80 cursor-not-allowed' : ''}
                                                         ${status === 'pendente' ? 'bg-slate-200 border-slate-300 text-slate-700 opacity-90 cursor-not-allowed' : ''}
                                                     `}
-                                                    title={`Casa ${num} - ${status.charAt(0).toUpperCase() + status.slice(1)}`}
+                                                    title={`Apartamento ${num} - ${status.charAt(0).toUpperCase() + status.slice(1)}`}
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-1"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-                                                    Casa {num}
+                                                    Apto {num}
                                                 </button>
                                             );
                                         })}
@@ -423,7 +429,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                             </CardHeader>
                                             <CardContent className="p-4 pt-2 text-sm">
                                                 <span className="font-semibold text-gray-600">Tipo: </span>
-                                                <span className="capitalize">{app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer'}</span>
+                                                <span className="capitalize">{app.type === 'casa' ? `Apto ${app.house_number}` : 'Lazer'}</span>
                                             </CardContent>
                                         </Card>
                                     ))
@@ -448,7 +454,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                                             : 'Data Inválida'
                                                         }
                                                     </TableCell>
-                                                    <TableCell className="capitalize">{app.type === 'casa' ? `Casa ${app.house_number}` : 'Lazer'}</TableCell>
+                                                    <TableCell className="capitalize">{app.type === 'casa' ? `Apto ${app.house_number}` : 'Lazer'}</TableCell>
                                                     <TableCell>
                                                         <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')} className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
                                                             {app.status}
