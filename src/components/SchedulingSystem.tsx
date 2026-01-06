@@ -304,9 +304,9 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                             />
                         </CardContent>
                         <CardFooter className="flex flex-wrap gap-4 text-sm">
-                            <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full bg-white border"></div> Livre</div>
-                            <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full" style={modifiersStyles.pending}></div> Em Análise</div>
-                            <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full" style={modifiersStyles.approved}></div> Ocupado</div>
+                            <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full bg-green-100 border border-green-200"></div> Livre</div>
+                            <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full bg-slate-200 border border-slate-300"></div> Em Análise</div>
+                            <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full bg-red-200 border border-red-300"></div> Ocupado</div>
                         </CardFooter>
                     </Card>
                 </div>
@@ -344,18 +344,17 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                             let status: 'livre' | 'ocupado' | 'pendente' = 'livre';
 
                                             if (dateRange?.from) {
-                                                const checkStart = dateRange.from;
-                                                const checkEnd = dateRange.to || dateRange.from;
-                                                const interval = eachDayOfInterval({ start: checkStart, end: checkEnd });
+                                                const checkStartStr = format(dateRange.from, 'yyyy-MM-dd');
+                                                const checkEndStr = format(dateRange.to || dateRange.from, 'yyyy-MM-dd');
 
                                                 // Check against allAppointments
                                                 for (const app of allAppointments) {
                                                     if (app.type === 'casa' && app.house_number === num && app.status !== 'rejeitado' && app.start_date && app.end_date) {
-                                                        const appStart = parseSupabaseDate(app.start_date);
-                                                        const appEnd = parseSupabaseDate(app.end_date);
+                                                        const appStartStr = app.start_date.substring(0, 10);
+                                                        const appEndStr = app.end_date.substring(0, 10);
+
                                                         // Check overlap
-                                                        // Simple overlap check: (StartA <= EndB) and (EndA >= StartB)
-                                                        if (appStart <= checkEnd && appEnd >= checkStart) {
+                                                        if (appStartStr <= checkEndStr && appEndStr >= checkStartStr) {
                                                             if (app.status === 'aprovado') status = 'ocupado';
                                                             else if (app.status === 'pendente' && status !== 'ocupado') status = 'pendente';
                                                         }
@@ -370,10 +369,10 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                                     disabled={status !== 'livre'}
                                                     className={`
                                                         flex flex-col items-center justify-center p-2 rounded-md border text-sm font-medium transition-all
-                                                        ${houseNumber === num ? 'ring-2 ring-blue-600 bg-blue-50 border-blue-600' : ''}
-                                                        ${status === 'livre' && houseNumber !== num ? 'bg-white hover:bg-gray-50 border-gray-200 cursor-pointer' : ''}
-                                                        ${status === 'ocupado' ? 'bg-red-100 border-red-200 text-red-700 opacity-80 cursor-not-allowed' : ''}
-                                                        ${status === 'pendente' ? 'bg-yellow-100 border-yellow-200 text-yellow-700 opacity-90 cursor-not-allowed' : ''}
+                                                        ${houseNumber === num ? 'ring-2 ring-blue-600 border-blue-600 z-10' : ''}
+                                                        ${status === 'livre' ? 'bg-green-100 border-green-200 text-green-800 hover:bg-green-200 cursor-pointer' : ''}
+                                                        ${status === 'ocupado' ? 'bg-red-200 border-red-300 text-red-900 opacity-80 cursor-not-allowed' : ''}
+                                                        ${status === 'pendente' ? 'bg-slate-200 border-slate-300 text-slate-700 opacity-90 cursor-not-allowed' : ''}
                                                     `}
                                                     title={`Casa ${num} - ${status.charAt(0).toUpperCase() + status.slice(1)}`}
                                                 >
