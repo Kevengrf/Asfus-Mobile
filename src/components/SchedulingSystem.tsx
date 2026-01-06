@@ -81,6 +81,19 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
         fetchPageData();
     }, [fetchPageData]);
 
+    // Helper to parse "YYYY-MM-DD" as local date at 12:00 to avoid UTC shifts
+    const parseSupabaseDate = (dateString: string) => {
+        if (!dateString) return new Date();
+        const parts = dateString.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parseInt(parts[2], 10);
+            return new Date(year, month, day, 12, 0, 0);
+        }
+        return new Date(dateString); // Fallback
+    };
+
     const processAppointmentsForCalendar = (appointments: Appointment[]) => {
         let pending: Date[] = [];
         let approvedLazer: Date[] = [];
@@ -88,7 +101,11 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
         appointments.forEach(app => {
             if (!app.start_date || !app.end_date) return;
-            const interval = eachDayOfInterval({ start: new Date(app.start_date), end: new Date(app.end_date) });
+            // distinct fix: use parseSupabaseDate
+            const interval = eachDayOfInterval({
+                start: parseSupabaseDate(app.start_date),
+                end: parseSupabaseDate(app.end_date)
+            });
 
             if (app.status === 'pendente') {
                 pending.push(...interval);
@@ -104,7 +121,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
             }
         });
 
-        const fullyBooked = Object.keys(approvedCasaCount).filter(date => approvedCasaCount[date] >= 11).map(dateStr => new Date(dateStr));
+        const fullyBooked = Object.keys(approvedCasaCount).filter(date => approvedCasaCount[date] >= 11).map(dateStr => parseSupabaseDate(dateStr));
 
         setPendingDates(pending);
         setApprovedLazerDates(approvedLazer);
@@ -113,7 +130,11 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
     const isDateDisabled = (date: Date): boolean => {
         const dateString = format(date, 'yyyy-MM-dd');
-        const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+        // Compare with today set to 00:00:00 to disable past dates correctly
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const isPast = date < today;
         const isLazerBooked = approvedLazerDates.some(d => format(d, 'yyyy-MM-dd') === dateString);
         const isCasaFull = fullyBookedCasaDates.some(d => format(d, 'yyyy-MM-dd') === dateString);
         return isPast || isLazerBooked || isCasaFull;
@@ -174,6 +195,27 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
         // --- CONFLICT CHECK ---
         try {
+            // 1. Check Lazer: One per user per day
+            if (appointmentType === 'lazer') {
+                const { data: existingLazer, error: lazerError } = await supabase
+                    .from('appointments')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .eq('type', 'lazer')
+                    .in('status', ['aprovado', 'pendente'])
+                    // Check if there is any overlapping lazer appointment for this user
+                    // Since lazer is forced to single day, checking overlap is essentially checking exact date match
+                    // but using lte/gte covers future range possibilities too.
+                    .lte('start_date', format(endDate, "yyyy-MM-dd"))
+                    .gte('end_date', format(startDate, "yyyy-MM-dd"));
+
+                if (lazerError) throw lazerError;
+                if (existingLazer && existingLazer.length > 0) {
+                    throw new Error(`Você já possui uma solicitação de Lazer para esta data (${format(startDate, "dd/MM/yyyy")}).`);
+                }
+            }
+
+            // 2. Check Casa: Unit availability
             if (appointmentType === 'casa') {
                 const { data: conflictingCasa, error: conflictingCasaError } = await supabase
                     .from('appointments')
@@ -204,14 +246,24 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
             const initialStatus = profileData.role === 'admin' ? 'aprovado' : 'pendente';
 
+            // Normalize date to noon to avoid timezone issues
+            const normalizeDate = (date: Date) => {
+                const newDate = new Date(date);
+                newDate.setHours(12, 0, 0, 0);
+                return newDate;
+            };
+
+            const normalizedStart = normalizeDate(startDate);
+            const normalizedEnd = normalizeDate(endDate);
+
             const { error: insertError } = await supabase
                 .from('appointments')
                 .insert({
                     user_id: user.id,
-                    start_date: format(startDate, "yyyy-MM-dd"),
-                    end_date: format(endDate, "yyyy-MM-dd"),
+                    start_date: format(normalizedStart, "yyyy-MM-dd"),
+                    end_date: format(normalizedEnd, "yyyy-MM-dd"),
                     // Fix: DB still requires booking_date, map it to start_date
-                    booking_date: format(startDate, "yyyy-MM-dd"),
+                    booking_date: format(normalizedStart, "yyyy-MM-dd"),
                     status: initialStatus,
                     type: appointmentType,
                     house_number: appointmentType === 'casa' ? houseNumber : null,
@@ -286,12 +338,51 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                             {appointmentType === 'casa' && (
                                 <div className="space-y-2">
                                     <Label htmlFor="house-number" className="font-semibold">Número da Casa:</Label>
-                                    <select id="house-number" value={houseNumber || ''} onChange={(e) => setHouseNumber(Number(e.target.value))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                                        <option value="" disabled>Selecione uma casa</option>
-                                        {Array.from({ length: 11 }, (_, i) => i + 1).map(num => (
-                                            <option key={num} value={num}>Casa {num}</option>
-                                        ))}
-                                    </select>
+                                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                                        {Array.from({ length: 11 }, (_, i) => i + 1).map(num => {
+                                            // Check status for this specific house in the selected range
+                                            let status: 'livre' | 'ocupado' | 'pendente' = 'livre';
+
+                                            if (dateRange?.from) {
+                                                const checkStart = dateRange.from;
+                                                const checkEnd = dateRange.to || dateRange.from;
+                                                const interval = eachDayOfInterval({ start: checkStart, end: checkEnd });
+
+                                                // Check against allAppointments
+                                                for (const app of allAppointments) {
+                                                    if (app.type === 'casa' && app.house_number === num && app.status !== 'rejeitado' && app.start_date && app.end_date) {
+                                                        const appStart = parseSupabaseDate(app.start_date);
+                                                        const appEnd = parseSupabaseDate(app.end_date);
+                                                        // Check overlap
+                                                        // Simple overlap check: (StartA <= EndB) and (EndA >= StartB)
+                                                        if (appStart <= checkEnd && appEnd >= checkStart) {
+                                                            if (app.status === 'aprovado') status = 'ocupado';
+                                                            else if (app.status === 'pendente' && status !== 'ocupado') status = 'pendente';
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            return (
+                                                <button
+                                                    key={num}
+                                                    onClick={() => status === 'livre' && setHouseNumber(num)}
+                                                    disabled={status !== 'livre'}
+                                                    className={`
+                                                        flex flex-col items-center justify-center p-2 rounded-md border text-sm font-medium transition-all
+                                                        ${houseNumber === num ? 'ring-2 ring-blue-600 bg-blue-50 border-blue-600' : ''}
+                                                        ${status === 'livre' && houseNumber !== num ? 'bg-white hover:bg-gray-50 border-gray-200 cursor-pointer' : ''}
+                                                        ${status === 'ocupado' ? 'bg-red-100 border-red-200 text-red-700 opacity-80 cursor-not-allowed' : ''}
+                                                        ${status === 'pendente' ? 'bg-yellow-100 border-yellow-200 text-yellow-700 opacity-90 cursor-not-allowed' : ''}
+                                                    `}
+                                                    title={`Casa ${num} - ${status.charAt(0).toUpperCase() + status.slice(1)}`}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-1"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                                                    Casa {num}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
                         </CardContent>
@@ -322,7 +413,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                                 <div className="flex justify-between items-start">
                                                     <CardTitle className="text-base font-bold">
                                                         {app.start_date && app.end_date ?
-                                                            `${format(new Date(app.start_date), "dd/MM/yy")} - ${format(new Date(app.end_date), "dd/MM/yy")}`
+                                                            `${format(parseSupabaseDate(app.start_date), "dd/MM/yy")} - ${format(parseSupabaseDate(app.end_date), "dd/MM/yy")}`
                                                             : 'Data Inválida'
                                                         }
                                                     </CardTitle>
@@ -354,7 +445,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                                 <TableRow key={app.id}>
                                                     <TableCell className="font-medium">
                                                         {app.start_date && app.end_date ?
-                                                            `${format(new Date(app.start_date), "dd/MM/yy")} - ${format(new Date(app.end_date), "dd/MM/yy")}`
+                                                            `${format(parseSupabaseDate(app.start_date), "dd/MM/yy")} - ${format(parseSupabaseDate(app.end_date), "dd/MM/yy")}`
                                                             : 'Data Inválida'
                                                         }
                                                     </TableCell>
