@@ -52,13 +52,12 @@ export const LicensePlate: React.FC<LicensePlateProps> = ({ plate, size = 'md' }
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 relative flex items-center justify-center">
-                    {/* QR Code removed as requested */}
-                    <div className="absolute left-2 top-2 text-[#003399] text-[8px] font-bold">BR</div>
-
+                <div className="flex-1 relative flex items-center justify-center bg-white h-full">
                     {/* Code */}
-                    <div className="font-mono font-bold text-slate-900 text-[38px] tracking-widest leading-none pt-1" style={{ fontFamily: 'Oswald, sans-serif', textShadow: '2px 2px 0px rgba(0,0,0,0.1)' }}>
-                        {plate.toUpperCase()}
+                    <div className="flex justify-center items-center w-full">
+                        <span className="font-mono font-bold text-slate-900 text-[28px] sm:text-[32px] tracking-widest leading-none pt-1 whitespace-nowrap" style={{ fontFamily: 'sans-serif', textShadow: '1px 1px 0px rgba(0,0,0,0.1)' }}>
+                            {plate.toUpperCase()}
+                        </span>
                     </div>
                 </div>
             </div>
