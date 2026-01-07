@@ -52,11 +52,11 @@ export default function AdminLoginPage() {
       .single();
 
     if (profileError || !profile) {
-        // Se não encontrar o perfil, desloga por segurança e mostra erro
-        await supabase.auth.signOut();
-        setIsLoading(false);
-        setError("Erro ao verificar permissões.");
-        return;
+      // Se não encontrar o perfil, desloga por segurança e mostra erro
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      setError("Erro ao verificar permissões.");
+      return;
     }
 
     // 3. Se for admin, redireciona. Se não, desloga e avisa.
@@ -98,12 +98,18 @@ export default function AdminLoginPage() {
               )}
               Acessar Painel
             </Button>
-            <div className="mt-4 text-center text-sm">
+            <div className="mt-4 text-center text-sm flex flex-col gap-2">
               <Link
                 href="/login"
                 className="underline underline-offset-4 hover:text-primary"
               >
                 Sou um Associado
+              </Link>
+              <Link
+                href="/guarita/login"
+                className="underline underline-offset-4 hover:text-primary text-muted-foreground"
+              >
+                Acesso Guarita
               </Link>
             </div>
           </CardFooter>

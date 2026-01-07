@@ -4,7 +4,7 @@ import * as React from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
-import { addDays, differenceInDays, eachDayOfInterval, areIntervalsOverlapping } from "date-fns";
+import { addDays, differenceInDays, eachDayOfInterval, areIntervalsOverlapping, isSameDay } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -18,16 +18,28 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Car, Users, Home } from "lucide-react";
+
+type AppointmentType = 'dayuse' | 'evento' | 'apartamentos';
 
 type Appointment = {
     id: number;
     start_date: string;
     end_date: string;
     status: 'pendente' | 'aprovado' | 'rejeitado';
-    type: 'lazer' | 'casa';
+    type: AppointmentType;
     house_number?: number;
+    license_plate?: string;
+};
+
+type Guest = {
+    name: string;
+    cpf: string;
+    sex: string;
+    contact: string;
 };
 
 interface SchedulingSystemProps {
@@ -36,14 +48,19 @@ interface SchedulingSystemProps {
 
 export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) {
     const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
-    const [appointmentType, setAppointmentType] = React.useState<'lazer' | 'casa'>('lazer');
+    const [appointmentType, setAppointmentType] = React.useState<AppointmentType>('dayuse');
     const [houseNumber, setHouseNumber] = React.useState<number | undefined>();
-    const [userAppointments, setUserAppointments] = React.useState<Appointment[]>([]);
+    const [licensePlate, setLicensePlate] = React.useState('');
+    const [guests, setGuests] = React.useState<Guest[]>([]);
 
+    // Guest Form State
+    const [newGuest, setNewGuest] = React.useState<Guest>({ name: '', cpf: '', sex: '', contact: '' });
+
+    const [userAppointments, setUserAppointments] = React.useState<Appointment[]>([]);
     const [allAppointments, setAllAppointments] = React.useState<Appointment[]>([]);
     const [pendingDates, setPendingDates] = React.useState<Date[]>([]);
-    const [approvedLazerDates, setApprovedLazerDates] = React.useState<Date[]>([]);
-    const [fullyBookedCasaDates, setFullyBookedCasaDates] = React.useState<Date[]>([]);
+    const [blockedEventoDates, setBlockedEventoDates] = React.useState<Date[]>([]);
+    const [fullyBookedApartamentoDates, setFullyBookedApartamentoDates] = React.useState<Date[]>([]);
 
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -56,7 +73,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
         if (user && showHistory) {
             const { data: userAppointmentsData } = await supabase
                 .from('appointments')
-                .select('*')
+                .select('*, appointment_guests(id, amount)')
                 .eq('user_id', user.id)
                 .order('start_date', { ascending: false });
             if (userAppointmentsData) setUserAppointments(userAppointmentsData as any);
@@ -81,7 +98,6 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
         fetchPageData();
     }, [fetchPageData]);
 
-    // Helper to parse "YYYY-MM-DD" as local date at 12:00 to avoid UTC shifts
     const parseSupabaseDate = (dateString: string) => {
         if (!dateString) return new Date();
         const parts = dateString.split('-');
@@ -91,17 +107,16 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
             const day = parseInt(parts[2], 10);
             return new Date(year, month, day, 12, 0, 0);
         }
-        return new Date(dateString); // Fallback
+        return new Date(dateString);
     };
 
     const processAppointmentsForCalendar = (appointments: Appointment[]) => {
         let pending: Date[] = [];
-        let approvedLazer: Date[] = [];
-        const approvedCasaCount: { [key: string]: number } = {};
+        let blockedEvento: Date[] = [];
+        const approvedApartamentoCount: { [key: string]: number } = {};
 
         appointments.forEach(app => {
             if (!app.start_date || !app.end_date) return;
-            // distinct fix: use parseSupabaseDate
             const interval = eachDayOfInterval({
                 start: parseSupabaseDate(app.start_date),
                 end: parseSupabaseDate(app.end_date)
@@ -109,79 +124,104 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
             if (app.status === 'pendente') {
                 pending.push(...interval);
-            } else if (app.status === 'aprovado') {
-                if (app.type === 'lazer') {
-                    approvedLazer.push(...interval);
-                } else if (app.type === 'casa') {
+            }
+
+            if (app.status === 'aprovado' || app.status === 'pendente') {
+                if (app.type === 'evento') {
+                    blockedEvento.push(...interval);
+                } else if (app.type === 'apartamentos') {
                     interval.forEach(date => {
                         const dateString = format(date, 'yyyy-MM-dd');
-                        approvedCasaCount[dateString] = (approvedCasaCount[dateString] || 0) + 1;
+                        approvedApartamentoCount[dateString] = (approvedApartamentoCount[dateString] || 0) + 1;
                     });
                 }
             }
         });
 
-        const fullyBooked = Object.keys(approvedCasaCount).filter(date => approvedCasaCount[date] >= 11).map(dateStr => parseSupabaseDate(dateStr));
+        const fullyBookedApto = Object.keys(approvedApartamentoCount)
+            .filter(date => approvedApartamentoCount[date] >= 11)
+            .map(dateStr => parseSupabaseDate(dateStr));
 
         setPendingDates(pending);
-        setApprovedLazerDates(approvedLazer);
-        setFullyBookedCasaDates(fullyBooked);
+        setBlockedEventoDates(blockedEvento);
+        setFullyBookedApartamentoDates(fullyBookedApto);
     };
 
     const isDateDisabled = (date: Date): boolean => {
-        const dateString = format(date, 'yyyy-MM-dd');
-        // Compare with today set to 00:00:00 to disable past dates correctly
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const isPast = date < today;
-        const isLazerBooked = approvedLazerDates.some(d => format(d, 'yyyy-MM-dd') === dateString);
-        const isCasaFull = fullyBookedCasaDates.some(d => format(d, 'yyyy-MM-dd') === dateString);
-        return isPast || isLazerBooked || isCasaFull;
+        if (date < today) return true;
+
+        if (appointmentType === 'evento') {
+            return blockedEventoDates.some(d => isSameDay(d, date));
+        }
+
+        if (appointmentType === 'apartamentos') {
+            return fullyBookedApartamentoDates.some(d => isSameDay(d, date));
+        }
+
+        return false;
     };
 
     const modifiers = {
         pending: pendingDates,
-        approved: [...approvedLazerDates, ...fullyBookedCasaDates],
+        booked: [...blockedEventoDates, ...fullyBookedApartamentoDates],
     };
 
     const modifiersStyles = {
-        pending: { backgroundColor: '#E2E8F0', color: '#4A5568' }, // gray-200
-        approved: { backgroundColor: '#FECACA', color: '#991B1B' },   // red-200
+        pending: { backgroundColor: '#E2E8F0', color: '#4A5568' },
+        booked: { backgroundColor: '#FECACA', color: '#991B1B' },
     };
 
     const handleDateSelect = (range: DateRange | undefined) => {
-        if (appointmentType === 'lazer' && range?.from) {
-            // For Lazer, force a single day selection
-            range.to = range.from;
+        setFormMessage(null);
+
+        if ((appointmentType === 'dayuse' || appointmentType === 'evento') && range?.from) {
+            setDateRange({ from: range.from, to: range.from });
+            return;
         }
-        else if (range?.from && range.to) {
+
+        if (appointmentType === 'apartamentos' && range?.from && range.to) {
             if (differenceInDays(range.to, range.from) > 6) {
                 setFormMessage({ type: 'error', text: 'Você só pode selecionar no máximo 7 dias para apartamentos.' });
                 setDateRange({ from: range.from, to: addDays(range.from, 6) });
                 return;
             }
         }
-        setFormMessage(null);
         setDateRange(range);
     }
+
+    const handleAddGuest = () => {
+        if (!newGuest.name || !newGuest.cpf) {
+            alert("Nome e CPF são obrigatórios para o convidado.");
+            return;
+        }
+        setGuests([...guests, newGuest]);
+        setNewGuest({ name: '', cpf: '', sex: '', contact: '' });
+    };
+
+    const handleRemoveGuest = (index: number) => {
+        const updated = [...guests];
+        updated.splice(index, 1);
+        setGuests(updated);
+    };
 
     const handleBooking = async () => {
         setFormMessage(null);
         setIsSubmitting(true);
 
-        if (!dateRange?.from) { // 'to' is not required for single day
+        if (!dateRange?.from) {
             setFormMessage({ type: 'error', text: "Por favor, selecione uma data." });
             setIsSubmitting(false);
             return;
         }
 
-        // Define end_date, if it's not present in a range, it's the same as from
         const startDate = dateRange.from;
         const endDate = dateRange.to || dateRange.from;
 
-        if (appointmentType === 'casa' && !houseNumber) {
-            setFormMessage({ type: 'error', text: "Por favor, selecione o número da casa." });
+        if (appointmentType === 'apartamentos' && !houseNumber) {
+            setFormMessage({ type: 'error', text: "Por favor, selecione o número do apartamento." });
             setIsSubmitting(false);
             return;
         }
@@ -193,34 +233,27 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
             return;
         }
 
-        // --- CONFLICT CHECK ---
         try {
-            // 1. Check Lazer: One per user per day
-            if (appointmentType === 'lazer') {
-                const { data: existingLazer, error: lazerError } = await supabase
+            if (appointmentType === 'evento') {
+                const { data: existingEvents, error: eventError } = await supabase
                     .from('appointments')
                     .select('id')
-                    .eq('user_id', user.id)
-                    .eq('type', 'lazer')
+                    .eq('type', 'evento')
                     .in('status', ['aprovado', 'pendente'])
-                    // Check if there is any overlapping lazer appointment for this user
-                    // Since lazer is forced to single day, checking overlap is essentially checking exact date match
-                    // but using lte/gte covers future range possibilities too.
                     .lte('start_date', format(endDate, "yyyy-MM-dd"))
                     .gte('end_date', format(startDate, "yyyy-MM-dd"));
 
-                if (lazerError) throw lazerError;
-                if (existingLazer && existingLazer.length > 0) {
-                    throw new Error(`Você já possui uma solicitação de Lazer para esta data (${format(startDate, "dd/MM/yyyy")}).`);
+                if (eventError) throw eventError;
+                if (existingEvents && existingEvents.length > 0) {
+                    throw new Error(`Já existe um Evento agendado/pendente para esta data.`);
                 }
             }
 
-            // 2. Check Casa: Unit availability
-            if (appointmentType === 'casa') {
+            if (appointmentType === 'apartamentos') {
                 const { data: conflictingCasa, error: conflictingCasaError } = await supabase
                     .from('appointments')
                     .select('id')
-                    .eq('type', 'casa')
+                    .eq('type', 'apartamentos')
                     .eq('house_number', houseNumber)
                     .in('status', ['aprovado', 'pendente'])
                     .lte('start_date', format(endDate, "yyyy-MM-dd"))
@@ -231,8 +264,6 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                     throw new Error(`O Apartamento ${houseNumber} já possui uma reserva ou solicitação para este período.`);
                 }
             }
-            // The general check for 'lazer' and 'casa' full capacity is already handled by isDateDisabled visually
-            // but a server-side check is always good practice. We can add it if needed.
 
             const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
@@ -240,41 +271,77 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                 .eq('id', user.id)
                 .single();
 
-            if (profileError || !profileData) {
-                throw new Error('Erro ao verificar o papel do usuário.');
+            if (profileError || !profileData) throw new Error('Erro ao verificar o papel do usuário.');
+
+            if (profileData.role !== 'admin') {
+                const now = new Date();
+                const day = now.getDay();
+                const hour = now.getHours();
+                const isWeekend = day === 0 || day === 5 || day === 6;
+                const isLateThursday = day === 4 && hour >= 17;
+
+                if (isWeekend || isLateThursday) {
+                    throw new Error('Os agendamentos só podem ser realizados de Segunda a Quinta-feira, até às 17h.');
+                }
             }
 
-            const initialStatus = profileData.role === 'admin' ? 'aprovado' : 'pendente';
+            const initialStatus = 'pendente';
 
-            // Normalize date to noon to avoid timezone issues
             const normalizeDate = (date: Date) => {
                 const newDate = new Date(date);
                 newDate.setHours(12, 0, 0, 0);
                 return newDate;
             };
-
             const normalizedStart = normalizeDate(startDate);
             const normalizedEnd = normalizeDate(endDate);
 
-            const { error: insertError } = await supabase
+            // 1. Create Appointment
+            const { data: appointmentData, error: insertError } = await supabase
                 .from('appointments')
                 .insert({
                     user_id: user.id,
                     start_date: format(normalizedStart, "yyyy-MM-dd"),
                     end_date: format(normalizedEnd, "yyyy-MM-dd"),
-                    // Fix: DB still requires booking_date, map it to start_date
                     booking_date: format(normalizedStart, "yyyy-MM-dd"),
                     status: initialStatus,
                     type: appointmentType,
-                    house_number: appointmentType === 'casa' ? houseNumber : null,
+                    house_number: appointmentType === 'apartamentos' ? houseNumber : null,
+                    license_plate: licensePlate || null,
                 })
+                .select()
                 .single();
 
             if (insertError) throw insertError;
+            if (!appointmentData) throw new Error("Erro ao criar agendamento.");
+
+            // 2. Insert Guests (if any)
+            if (guests.length > 0) {
+                const guestsToInsert = guests.map(guest => ({
+                    appointment_id: appointmentData.id,
+                    name: guest.name,
+                    cpf: guest.cpf,
+                    sex: guest.sex,
+                    contact: guest.contact,
+                    amount: 10.00 // Fixed price
+                }));
+
+                const { error: guestsError } = await supabase
+                    .from('appointment_guests')
+                    .insert(guestsToInsert);
+
+                if (guestsError) {
+                    console.error("Error inserting guests:", guestsError);
+                    // Optional: Rollback appointment? Or just warn?
+                    // For now, warning user.
+                    throw new Error("Agendamento criado, mas houve erro ao salvar convidados. Contate o admin.");
+                }
+            }
 
             setFormMessage({ type: 'success', text: "Solicitação enviada com sucesso!" });
             setDateRange(undefined);
             setHouseNumber(undefined);
+            setLicensePlate('');
+            setGuests([]);
             fetchPageData();
 
         } catch (error: any) {
@@ -289,21 +356,22 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
         <div className="space-y-12">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
-                    <Card>
-                        <CardContent className="p-4 flex justify-center">
+                    <Card className="h-full">
+                        <CardContent className="p-4 flex flex-col items-center">
+                            {/* Calendar is slightly complex to center perfectly without full width logic, sticking to flex center */}
                             <Calendar
                                 mode="range"
                                 selected={dateRange}
                                 onSelect={handleDateSelect}
-                                className="rounded-md border"
+                                className="rounded-md border p-4 pointer-events-auto"
                                 disabled={isDateDisabled}
                                 modifiers={modifiers}
                                 modifiersStyles={modifiersStyles}
-                                numberOfMonths={2}
+                                numberOfMonths={1}
                                 locale={ptBR}
                             />
                         </CardContent>
-                        <CardFooter className="flex flex-wrap gap-4 text-sm">
+                        <CardFooter className="flex flex-wrap gap-4 text-sm justify-center bg-slate-50 p-4 border-t">
                             <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full bg-green-100 border border-green-200"></div> Livre</div>
                             <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full bg-slate-200 border border-slate-300"></div> Em Análise</div>
                             <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full bg-red-200 border border-red-300"></div> Ocupado</div>
@@ -311,55 +379,66 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                     </Card>
                 </div>
 
-                <div>
+                <div className="space-y-6">
                     <Card>
-                        <CardHeader><CardTitle>Sua Reserva</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardHeader><CardTitle>Configurar Reserva</CardTitle></CardHeader>
+                        <CardContent className="space-y-5">
+                            {/* Date Display */}
                             <div>
-                                <p className="font-semibold">Período Selecionado:</p>
-                                <p className="text-lg text-blue-600 font-bold">
-                                    {dateRange?.from ? format(dateRange.from, "PPP", { locale: ptBR }) : 'Selecione o início'}
-                                    {dateRange?.to ? ` - ${format(dateRange.to, "PPP", { locale: ptBR })}` : ''}
-                                </p>
+                                <Label>Período Selecionado</Label>
+                                <div className="text-lg text-blue-600 font-bold border p-2 rounded-md bg-blue-50 text-center">
+                                    {dateRange?.from ? format(dateRange.from, "PPP", { locale: ptBR }) : 'Selecione no calendário'}
+                                    {dateRange?.to && appointmentType === 'apartamentos' ? ` - ${format(dateRange.to, "PPP", { locale: ptBR })}` : ''}
+                                </div>
                             </div>
+
+                            {/* Type Selection */}
                             <div className="space-y-2">
-                                <p className="font-semibold">Tipo de Uso:</p>
-                                <div className="flex gap-4">
-                                    <Label className="flex items-center gap-2 cursor-pointer p-2 rounded-md has-[:checked]:bg-blue-100 has-[:checked]:border-blue-300 border-2 border-transparent transition-all">
-                                        <input type="radio" name="appointmentType" value="lazer" checked={appointmentType === 'lazer'} onChange={() => setAppointmentType('lazer')} className="sr-only" />
-                                        Uso Lazer
+                                <Label>Tipo de Uso</Label>
+                                <div className="grid grid-cols-1 gap-2">
+                                    <Label className={`flex items-center gap-3 cursor-pointer p-3 rounded-md border transition-all ${appointmentType === 'dayuse' ? 'bg-blue-100 border-blue-400 ring-1 ring-blue-400' : 'hover:bg-slate-50'}`}>
+                                        <input type="radio" name="appointmentType" value="dayuse" checked={appointmentType === 'dayuse'} onChange={() => { setAppointmentType('dayuse'); setDateRange(undefined); }} className="w-4 h-4 text-blue-600" />
+                                        <span>Dayuse (Todos)</span>
                                     </Label>
-                                    <Label className="flex items-center gap-2 cursor-pointer p-2 rounded-md has-[:checked]:bg-blue-100 has-[:checked]:border-blue-300 border-2 border-transparent transition-all">
-                                        <input type="radio" name="appointmentType" value="casa" checked={appointmentType === 'casa'} onChange={() => setAppointmentType('casa')} className="sr-only" />
-                                        Uso Apartamento
+                                    <Label className={`flex items-center gap-3 cursor-pointer p-3 rounded-md border transition-all ${appointmentType === 'evento' ? 'bg-blue-100 border-blue-400 ring-1 ring-blue-400' : 'hover:bg-slate-50'}`}>
+                                        <input type="radio" name="appointmentType" value="evento" checked={appointmentType === 'evento'} onChange={() => { setAppointmentType('evento'); setDateRange(undefined); }} className="w-4 h-4 text-blue-600" />
+                                        <span>Evento (Exclusivo)</span>
+                                    </Label>
+                                    <Label className={`flex items-center gap-3 cursor-pointer p-3 rounded-md border transition-all ${appointmentType === 'apartamentos' ? 'bg-blue-100 border-blue-400 ring-1 ring-blue-400' : 'hover:bg-slate-50'}`}>
+                                        <input type="radio" name="appointmentType" value="apartamentos" checked={appointmentType === 'apartamentos'} onChange={() => { setAppointmentType('apartamentos'); setDateRange(undefined); }} className="w-4 h-4 text-blue-600" />
+                                        <span>Apartamentos (11 un.)</span>
                                     </Label>
                                 </div>
                             </div>
-                            {appointmentType === 'casa' && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="house-number" className="font-semibold">Número do Apartamento:</Label>
-                                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+
+                            {/* License Plate (Optional for all) */}
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2"><Car className="w-4 h-4" /> Placa do Veículo (Opcional)</Label>
+                                <Input
+                                    placeholder="ABC-1234"
+                                    value={licensePlate}
+                                    onChange={(e) => setLicensePlate(e.target.value.toUpperCase())}
+                                    maxLength={8}
+                                />
+                            </div>
+
+                            {/* Apartments Grid */}
+                            {appointmentType === 'apartamentos' && (
+                                <div className="space-y-2 animate-in fade-in zoom-in duration-300">
+                                    <Label>Escolha o Apartamento</Label>
+                                    <div className="grid grid-cols-4 gap-2">
                                         {Array.from({ length: 11 }, (_, i) => i + 1).map(num => {
-                                            // Check status for this specific house in the selected range
                                             let status: 'livre' | 'ocupado' | 'pendente' = 'livre';
 
                                             if (dateRange?.from) {
                                                 const checkStart = dateRange.from;
                                                 const checkEnd = dateRange.to || dateRange.from;
 
-                                                // Check against allAppointments
                                                 for (const app of allAppointments) {
-                                                    if (app.type === 'casa' && app.house_number === num && app.status !== 'rejeitado' && app.start_date && app.end_date) {
+                                                    if (app.type === 'apartamentos' && app.house_number === num && app.status !== 'rejeitado' && app.start_date && app.end_date) {
                                                         const appStart = parseSupabaseDate(app.start_date);
                                                         const appEnd = parseSupabaseDate(app.end_date);
-
-                                                        // Check overlap using date-fns helper for accuracy
-                                                        const isOverlapping = areIntervalsOverlapping(
-                                                            { start: checkStart, end: checkEnd },
-                                                            { start: appStart, end: appEnd },
-                                                            { inclusive: true }
-                                                        );
-
+                                                        const isOverlapping = areIntervalsOverlapping({ start: checkStart, end: checkEnd }, { start: appStart, end: appEnd }, { inclusive: true });
                                                         if (isOverlapping) {
                                                             if (app.status === 'aprovado') status = 'ocupado';
                                                             else if (app.status === 'pendente' && status !== 'ocupado') status = 'pendente';
@@ -374,25 +453,62 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                                     onClick={() => status === 'livre' && setHouseNumber(num)}
                                                     disabled={status !== 'livre'}
                                                     className={`
-                                                        flex flex-col items-center justify-center p-2 rounded-md border text-sm font-medium transition-all
-                                                        ${houseNumber === num ? 'ring-2 ring-blue-600 border-blue-600 z-10' : ''}
-                                                        ${status === 'livre' ? 'bg-green-100 border-green-200 text-green-800 hover:bg-green-200 cursor-pointer' : ''}
-                                                        ${status === 'ocupado' ? 'bg-red-200 border-red-300 text-red-900 opacity-80 cursor-not-allowed' : ''}
-                                                        ${status === 'pendente' ? 'bg-slate-200 border-slate-300 text-slate-700 opacity-90 cursor-not-allowed' : ''}
+                                                        flex flex-col items-center justify-center py-2 h-auto rounded-md border text-sm font-bold transition-all relative
+                                                        ${houseNumber === num ? 'ring-2 ring-blue-600 border-blue-600 bg-blue-50 text-blue-700' : ''}
+                                                        ${status === 'livre' && houseNumber !== num ? 'bg-white hover:bg-slate-100 text-slate-700' : ''}
+                                                        ${status === 'ocupado' ? 'bg-red-100 border-red-200 text-red-400 opacity-60 cursor-not-allowed' : ''}
+                                                        ${status === 'pendente' ? 'bg-slate-200 border-slate-300 text-slate-500 cursor-not-allowed' : ''}
                                                     `}
-                                                    title={`Apartamento ${num} - ${status.charAt(0).toUpperCase() + status.slice(1)}`}
                                                 >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-1"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-                                                    Apto {num}
+                                                    <Home className="w-5 h-5 md:w-6 md:h-6 mb-1" />
+                                                    <span className="text-xs md:text-sm">{num}</span>
                                                 </button>
                                             );
                                         })}
                                     </div>
                                 </div>
                             )}
+
+                            {/* Guest Form (All Types) */}
+                            {(appointmentType === 'dayuse' || appointmentType === 'evento' || appointmentType === 'apartamentos') && (
+                                <div className="space-y-4 border-t pt-4">
+                                    <Label className="flex items-center gap-2 font-bold text-base"><Users className="w-4 h-4" /> Convidados</Label>
+                                    <p className="text-xs text-muted-foreground">Cada convidado gera uma cobrança de R$ 10,00 na sua folha.</p>
+
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Input placeholder="Nome" value={newGuest.name} onChange={e => setNewGuest({ ...newGuest, name: e.target.value })} className="col-span-2" />
+                                        <Input placeholder="CPF" value={newGuest.cpf} onChange={e => setNewGuest({ ...newGuest, cpf: e.target.value })} />
+                                        <Input placeholder="Contato" value={newGuest.contact} onChange={e => setNewGuest({ ...newGuest, contact: e.target.value })} />
+                                        <Select onValueChange={v => setNewGuest({ ...newGuest, sex: v })} value={newGuest.sex}>
+                                            <SelectTrigger><SelectValue placeholder="Sexo" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="M">Masculino</SelectItem>
+                                                <SelectItem value="F">Feminino</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Button onClick={handleAddGuest} size="icon" variant="secondary"><Plus className="w-4 h-4" /></Button>
+                                    </div>
+
+                                    {guests.length > 0 && (
+                                        <div className="bg-slate-50 rounded-md p-2 space-y-2">
+                                            {guests.map((g, i) => (
+                                                <div key={i} className="flex justify-between items-center text-sm border-b pb-1 last:border-0">
+                                                    <span>{g.name} <span className="text-muted-foreground text-xs">({g.cpf})</span></span>
+                                                    <Button variant="ghost" size="sm" onClick={() => handleRemoveGuest(i)} className="h-6 w-6 p-0 text-red-500"><Trash2 className="w-3 h-3" /></Button>
+                                                </div>
+                                            ))}
+                                            <div className="flex justify-between items-center font-bold pt-2 text-blue-700">
+                                                <span>Total Extra:</span>
+                                                <span>R$ {(guests.length * 10).toFixed(2)}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                         </CardContent>
                         <CardFooter className="flex flex-col gap-4">
-                            <Button className="w-full" onClick={handleBooking} disabled={!dateRange?.from || isSubmitting || isLoading}>
+                            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleBooking} disabled={!dateRange?.from || isSubmitting || isLoading}>
                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Confirmar Agendamento
                             </Button>
@@ -404,57 +520,31 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
             {showHistory && (
                 <div>
-                    <h2 className="text-3xl font-bold mb-4">Seu Histórico</h2>
+                    <h2 className="text-2xl font-bold mb-4">Seu Histórico</h2>
                     <Card>
                         <CardContent className="p-0">
-                            {/* Mobile View: Cards */}
-                            <div className="grid grid-cols-1 gap-4 md:hidden p-4">
-                                {isLoading ? (
-                                    <div className="flex justify-center p-4"><Loader2 className="h-8 w-8 animate-spin" /></div>
-                                ) : userAppointments.length > 0 ? (
-                                    userAppointments.map((app) => (
-                                        <Card key={app.id} className="shadow-sm border">
-                                            <CardHeader className="p-4 pb-2">
-                                                <div className="flex justify-between items-start">
-                                                    <CardTitle className="text-base font-bold">
-                                                        {app.start_date && app.end_date ?
-                                                            `${format(parseSupabaseDate(app.start_date), "dd/MM/yy")} - ${format(parseSupabaseDate(app.end_date), "dd/MM/yy")}`
-                                                            : 'Data Inválida'
-                                                        }
-                                                    </CardTitle>
-                                                    <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')} className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
-                                                        {app.status}
-                                                    </Badge>
-                                                </div>
-                                            </CardHeader>
-                                            <CardContent className="p-4 pt-2 text-sm">
-                                                <span className="font-semibold text-gray-600">Tipo: </span>
-                                                <span className="capitalize">{app.type === 'casa' ? `Apto ${app.house_number}` : 'Lazer'}</span>
-                                            </CardContent>
-                                        </Card>
-                                    ))
-                                ) : (
-                                    <p className="text-center text-muted-foreground">Nenhum agendamento encontrado.</p>
-                                )}
-                            </div>
-
-                            {/* Desktop View: Table */}
                             <div className="hidden md:block">
                                 <Table>
-                                    <TableHeader><TableRow><TableHead>Período</TableHead><TableHead>Tipo</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                                    <TableHeader><TableRow><TableHead>Período</TableHead><TableHead>Tipo</TableHead><TableHead>Custos</TableHead><TableHead>Placa</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                                     <TableBody>
-                                        {isLoading ? (
-                                            <TableRow><TableCell colSpan={3} className="h-24 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin" /></TableCell></TableRow>
-                                        ) : userAppointments.length > 0 ? (
+                                        {userAppointments.length > 0 ? (
                                             userAppointments.map((app) => (
                                                 <TableRow key={app.id}>
-                                                    <TableCell className="font-medium">
-                                                        {app.start_date && app.end_date ?
-                                                            `${format(parseSupabaseDate(app.start_date), "dd/MM/yy")} - ${format(parseSupabaseDate(app.end_date), "dd/MM/yy")}`
-                                                            : 'Data Inválida'
-                                                        }
+                                                    <TableCell>{app.start_date ? format(parseSupabaseDate(app.start_date), "dd/MM/yy") : ''}</TableCell>
+                                                    <TableCell className="capitalize">{app.type === 'apartamentos' ? `Apto ${app.house_number}` : app.type}</TableCell>
+                                                    <TableCell>
+                                                        {(app as any).appointment_guests?.length > 0 ? (
+                                                            <div className="flex flex-col text-xs">
+                                                                <span className="font-bold text-blue-600">
+                                                                    {(app as any).appointment_guests.length} conv.
+                                                                </span>
+                                                                <span>
+                                                                    R$ {((app as any).appointment_guests.reduce((acc: number, curr: any) => acc + (curr.amount || 10), 0)).toFixed(2)}
+                                                                </span>
+                                                            </div>
+                                                        ) : '-'}
                                                     </TableCell>
-                                                    <TableCell className="capitalize">{app.type === 'casa' ? `Apto ${app.house_number}` : 'Lazer'}</TableCell>
+                                                    <TableCell className="uppercase text-muted-foreground text-sm">{app.license_plate || '-'}</TableCell>
                                                     <TableCell>
                                                         <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')} className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
                                                             {app.status}
@@ -463,7 +553,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                                 </TableRow>
                                             ))
                                         ) : (
-                                            <TableRow><TableCell colSpan={3} className="h-24 text-center">Nenhum agendamento encontrado.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum agendamento.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>

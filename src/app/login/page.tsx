@@ -86,6 +86,8 @@ export default function LoginPage() {
     // 4. Redireciona com base na role
     if (profile.role === 'admin') {
       router.push('/admin/dashboard');
+    } else if (profile.role === 'guarita') {
+      router.push('/guarita');
     } else {
       router.push('/dashboard'); // Redireciona para o dashboard do associado
     }

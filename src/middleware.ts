@@ -65,14 +65,19 @@ export async function middleware(request: NextRequest) {
   // Exclude /admin/login from protection so users can actually log in
   // Also exclude /login and /register obviously
   const isAdminLogin = path === '/admin/login'
+  const isGuaritaLogin = path === '/guarita/login'
   const isAuthPage = path === '/login' || path === '/register' || path === '/first-access'
 
-  // Protect /admin (but not login) and /dashboard
-  const isProtectedRoute = (path.startsWith('/admin') && !isAdminLogin) || path.startsWith('/dashboard')
+  // Protect /admin (but not login) and /dashboard and /guarita
+  const isProtectedRoute = (path.startsWith('/admin') && !isAdminLogin) ||
+    (path.startsWith('/guarita') && !isGuaritaLogin) ||
+    path.startsWith('/dashboard')
 
   if (isProtectedRoute && !user) {
     if (path.startsWith('/admin')) {
       url.pathname = '/admin/login'
+    } else if (path.startsWith('/guarita')) {
+      url.pathname = '/guarita/login'
     } else {
       url.pathname = '/login'
     }
@@ -81,8 +86,14 @@ export async function middleware(request: NextRequest) {
 
   // 2. Admin Routes (require 'admin' role)
   if (path.startsWith('/admin') && !isAdminLogin && user) {
-    // Check metadata first (fastest)
-    const role = user.user_metadata?.role
+    // Check profile table (source of truth)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const role = profile?.role
 
     // If user is NOT admin
     if (role !== 'admin') {
@@ -92,11 +103,37 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 3. Prevent logged-in users from visiting login/register (optional UX improvement)
-  if ((isAuthPage || isAdminLogin) && user) {
-    const role = user.user_metadata?.role
+  // 3. Guarita Routes (require 'guarita' or 'admin' role)
+  if (path.startsWith('/guarita') && !isGuaritaLogin && user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const role = profile?.role
+
+    if (role !== 'guarita' && role !== 'admin') {
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // 4. Prevent logged-in users from visiting login/register (optional UX improvement)
+  if ((isAuthPage || isAdminLogin || isGuaritaLogin) && user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const role = profile?.role
+
     if (role === 'admin') {
       url.pathname = '/admin/dashboard'
+      return NextResponse.redirect(url)
+    } else if (role === 'guarita') {
+      url.pathname = '/guarita'
       return NextResponse.redirect(url)
     } else {
       url.pathname = '/dashboard'

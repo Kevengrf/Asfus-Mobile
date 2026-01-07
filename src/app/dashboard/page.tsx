@@ -14,7 +14,7 @@ export default function MemberDashboardPage() {
           <div>
             <h1 className="text-3xl md:text-4xl font-bold">Agendamento de Espaços</h1>
             <p className="text-base md:text-lg text-muted-foreground">
-              Selecione um período de até 4 dias para lazer ou para uma das nossas 11 casas.
+              Selecione um período de até 7 dias para lazer ou para uma das nossas 11 apartamentos.
             </p>
           </div>
           <div className="flex gap-2 w-full md:w-auto justify-start md:justify-end">
