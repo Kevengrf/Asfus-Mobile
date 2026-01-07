@@ -17,6 +17,7 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
+import { LicensePlate } from "@/components/LicensePlate";
 
 type Appointment = {
     id: number;
@@ -178,10 +179,10 @@ export default function GuaritaPage() {
                                         <h3 className="font-bold text-lg">{app.profiles?.nome_completo || 'Sem Nome'}</h3>
                                         <div className="text-sm text-muted-foreground flex flex-col md:flex-row gap-1 md:gap-4 mt-1">
                                             <span className="flex items-center gap-1"><User className="w-3 h-3" /> CPF: {app.profiles?.cpf}</span>
-                                            <span className="flex items-center gap-1">
-                                                <Car className="w-3 h-3" />
-                                                Placa: <span className="font-mono bg-slate-100 px-1 rounded font-bold text-slate-800">{app.license_plate || 'N/A'}</span>
-                                            </span>
+                                            <div className="flex items-center gap-2 mt-1 md:mt-0">
+                                                <Car className="w-3 h-3 text-muted-foreground" />
+                                                <LicensePlate plate={app.license_plate} size="sm" />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -226,15 +227,19 @@ export default function GuaritaPage() {
                             </div>
 
                             {/* Booking Info */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="border p-3 rounded-md">
-                                    <h4 className="text-xs font-bold text-slate-500 mb-1 uppercase">Veículo</h4>
-                                    <div className="text-xl font-mono font-bold">{selectedAppointment.license_plate || 'N/A'}</div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="border p-3 rounded-md flex flex-col items-center justify-center bg-slate-100">
+                                    <h4 className="text-xs font-bold text-slate-500 mb-2 uppercase w-full text-left">Veículo</h4>
+                                    <LicensePlate plate={selectedAppointment.license_plate} size="md" />
                                 </div>
                                 <div className="border p-3 rounded-md">
                                     <h4 className="text-xs font-bold text-slate-500 mb-1 uppercase">Período</h4>
                                     <div className="text-sm font-semibold">
                                         {format(new Date(selectedAppointment.start_date), 'dd/MM')} até {format(new Date(selectedAppointment.end_date), 'dd/MM')}
+                                    </div>
+                                    <div className="mt-2">
+                                        <h4 className="text-xs font-bold text-slate-500 mb-1 uppercase">Tipo</h4>
+                                        <div className="text-sm capitalize">{selectedAppointment.type}</div>
                                     </div>
                                 </div>
                             </div>

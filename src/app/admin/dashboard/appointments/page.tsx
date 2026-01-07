@@ -15,8 +15,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase/client";
-import { Download, Loader2, Car, Users, Eye } from "lucide-react";
+import { Download, Loader2, Car, Users, Eye, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ type Appointment = {
   profiles: {
     nome_completo: string;
     email: string;
+    profile_image: string | null;
   } | null;
   appointment_guests: { id: number; amount: number; name: string; cpf: string; contact: string; sex: string; }[]; // Relation for counting
 };
@@ -54,7 +56,7 @@ export default function AdminAppointmentsPage() {
         .from("appointments")
         .select(`
           id, user_id, start_date, end_date, type, house_number, status, license_plate,
-          profiles (nome_completo, email),
+          profiles (nome_completo, email, profile_image),
           appointment_guests (id, amount, name, cpf, contact, sex)
         `)
         .order('created_at', { ascending: false });
@@ -172,9 +174,15 @@ export default function AdminAppointmentsPage() {
                   <Card key={app.id} className="shadow-sm border">
                     <CardHeader className="p-4 pb-2">
                       <div className="flex justify-between items-start">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-base">{app.profiles?.nome_completo || 'N/A'}</span>
-                          <span className="text-xs text-muted-foreground">{app.profiles?.email}</span>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10 border border-slate-100">
+                            <AvatarImage src={app.profiles?.profile_image || ''} className="object-cover" />
+                            <AvatarFallback><User className="h-5 w-5 text-slate-400" /></AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-base">{app.profiles?.nome_completo || 'N/A'}</span>
+                            <span className="text-xs text-muted-foreground">{app.profiles?.email}</span>
+                          </div>
                         </div>
                         <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')}
                           className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
@@ -238,8 +246,16 @@ export default function AdminAppointmentsPage() {
                     appointments.map((app) => (
                       <TableRow key={app.id}>
                         <TableCell className="font-medium">
-                          {app.profiles?.nome_completo || 'N/A'}
-                          <div className="text-sm text-muted-foreground">{app.profiles?.email}</div>
+                          <div className="flex items-start gap-3">
+                            <Avatar className="h-9 w-9 border border-slate-100">
+                              <AvatarImage src={app.profiles?.profile_image || ''} className="object-cover" />
+                              <AvatarFallback><User className="h-4 w-4 text-slate-400" /></AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div>{app.profiles?.nome_completo || 'N/A'}</div>
+                              <div className="text-sm text-muted-foreground">{app.profiles?.email}</div>
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell>
                           {app.start_date && app.end_date ? `${format(new Date(app.start_date), "dd/MM/yy")} - ${format(new Date(app.end_date), "dd/MM/yy")}` : 'N/A'}

@@ -20,10 +20,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase/client";
-import { Download, Loader2, ShieldCheck, Trash2, KeyRound, Eye } from "lucide-react";
+import { Download, Loader2, ShieldCheck, Trash2, KeyRound, Eye, User } from "lucide-react";
 import { AddAssociateModal } from "@/components/admin/AddAssociateModal";
 import { ViewUserModal } from "@/components/admin/ViewUserModal";
 import { promoteToAdmin, deleteAssociate, resetPassword } from "./actions";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type Profile = {
   id: string;
@@ -39,6 +40,7 @@ type Profile = {
   dt_nasc: string | null;
   sexo: string | null;
   dependentes: any[] | null;
+  profile_image: string | null;
 };
 
 export default function AssociatesPage() {
@@ -173,9 +175,15 @@ export default function AssociatesPage() {
               <Card key={profile.id} className="shadow-sm">
                 <CardHeader className="p-4 pb-2">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-base font-bold">{profile.nome_completo}</CardTitle>
-                      <p className="text-sm text-muted-foreground break-all">{profile.email}</p>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={profile.profile_image || ''} className="object-cover" />
+                        <AvatarFallback><User className="h-5 w-5 text-slate-400" /></AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <CardTitle className="text-base font-bold">{profile.nome_completo}</CardTitle>
+                        <p className="text-sm text-muted-foreground break-all">{profile.email}</p>
+                      </div>
                     </div>
                     <Badge variant={profile.status === 'ativo' ? 'default' : (profile.status === 'pendente' ? 'secondary' : 'destructive')} className={profile.status === 'ativo' ? 'bg-green-600' : ''}>
                       {profile.status}
@@ -232,7 +240,15 @@ export default function AssociatesPage() {
               <TableBody>
                 {currentProfiles.map((profile) => (
                   <TableRow key={profile.id}>
-                    <TableCell className="font-medium">{profile.nome_completo}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage src={profile.profile_image || ''} className="object-cover" />
+                          <AvatarFallback><User className="h-4 w-4 text-slate-400" /></AvatarFallback>
+                        </Avatar>
+                        {profile.nome_completo}
+                      </div>
+                    </TableCell>
                     <TableCell>{profile.email}</TableCell>
                     <TableCell>
                       <Badge variant={profile.role === 'admin' ? 'default' : 'secondary'}>
