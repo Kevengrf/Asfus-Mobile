@@ -172,3 +172,47 @@ export async function deleteGallery(id: number) {
     throw error;
   }
 }
+
+// --- Lottery Periods Functions ---
+export const getLotteryPeriods = async () => {
+  const { data, error } = await supabase
+    .from('lottery_periods')
+    .select('*')
+    .order('start_date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching lottery periods:', error);
+    return [];
+  }
+  return data || [];
+};
+
+export const createLotteryPeriod = async (period: any) => {
+  // Validate that end_date is after start_date
+  if (new Date(period.end_date) < new Date(period.start_date)) {
+    throw new Error("A data de término deve ser posterior à data de início.");
+  }
+
+  const { data, error } = await supabase
+    .from('lottery_periods')
+    .insert([period])
+    .select();
+
+  if (error) {
+    console.error('Error creating lottery period:', error);
+    throw error;
+  }
+  return data[0];
+};
+
+export const deleteLotteryPeriod = async (id: number | string) => {
+  const { error } = await supabase
+    .from('lottery_periods')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting lottery period:', error);
+    throw error;
+  }
+};

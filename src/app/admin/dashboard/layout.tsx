@@ -32,6 +32,7 @@ const navLinks = [
   { href: "/admin/dashboard/events", label: "Eventos", icon: Calendar },
   { href: "/admin/dashboard/associates", label: "Associados", icon: Users },
   { href: "/admin/dashboard/admins", label: "Admins", icon: Shield },
+  { href: "/admin/dashboard/lottery", label: "Sorteio", icon: CalendarPlus }, // Using CalendarPlus as placeholder or maybe a different icon? Using CalendarPlus for 'Fazer Agendamento' below too?
   { href: "/admin/dashboard/fazer-agendamento", label: "Fazer Agendamento", icon: CalendarPlus },
 ];
 
