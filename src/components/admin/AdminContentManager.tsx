@@ -83,7 +83,11 @@ export function AdminContentManager<T extends { id: number; title?: string; name
         imageUrl = await uploadImageFunction(selectedFile, 'content-images');
       }
 
-      const dataToCreate = { ...formState, image_url: imageUrl };
+      const dataToCreate = { ...formState };
+      if (imageUrl) {
+        (dataToCreate as any).image_url = imageUrl;
+      }
+
       await createFunction(dataToCreate);
       setFormState({});
       setSelectedFile(null);
