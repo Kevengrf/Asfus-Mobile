@@ -39,9 +39,8 @@ export async function checkCpf(cpf: string) {
     }
 
     // Existing Auth User check
-    // We WANT to find the auth user to update it.
-    // If no auth user exists (orphaned profile), we'll create one later.
-    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(profile.id);
+    const { data } = await supabaseAdmin.auth.admin.getUserById(profile.id);
+    const authUser = data?.user;
 
     if (authUser) {
         // SECURITY FIX: If user has logged in before, BLOCK first access

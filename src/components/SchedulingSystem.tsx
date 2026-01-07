@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase/client";
 import { Loader2, Plus, Trash2, Car, Users, Home } from "lucide-react";
+import { ProfileHeader } from "./ProfileHeader";
 
 type AppointmentType = 'dayuse' | 'evento' | 'apartamentos';
 
@@ -354,6 +355,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
     return (
         <div className="space-y-12">
+            <ProfileHeader />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
                     <Card className="h-full">

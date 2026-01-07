@@ -23,6 +23,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 
 const navLinks = [
   { href: "/admin/dashboard", label: "Início / Aprovações", icon: Home },
+  { href: "/admin/dashboard/profiles", label: "Aprovações Perfil", icon: Users },
   { href: "/admin/dashboard/appointments", label: "Agendamentos", icon: CalendarCheck },
   { href: "/admin/dashboard/news", label: "Notícias", icon: Newspaper },
   { href: "/admin/dashboard/gallery", label: "Galeria", icon: Image },

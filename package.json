@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy": "VPS_PASS='Asfus@suape123' node scripts/deploy.js"
+    "deploy": "VPS_PASS=\"V'GJS/kMRzqySHMPAJ2s\" node scripts/deploy.js"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",
@@ -31,6 +31,7 @@
     "react": "^18.2.0",
     "react-day-picker": "^9.12.0",
     "react-dom": "^18.2.0",
+    "react-image-crop": "^11.0.10",
     "tailwind-merge": "^2.3.0",
     "vaul": "^1.1.2",
     "xlsx": "^0.18.5"
