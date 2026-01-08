@@ -259,7 +259,7 @@ export default function AdminLotteryPage() {
                                 <CardTitle className="flex justify-between items-center">
                                     Participantes <Badge>{participants.length}</Badge>
                                 </CardTitle>
-                                <CardDescription>Inscrições "Em Sorteio"</CardDescription>
+                                <CardDescription>Inscrições &quot;Em Sorteio&quot;</CardDescription>
                             </CardHeader>
                             <CardContent className="h-96 overflow-y-auto">
                                 <ul className="space-y-2">
