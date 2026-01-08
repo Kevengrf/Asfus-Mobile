@@ -33,7 +33,7 @@ export async function createNews(newsData: { title: string; summary?: string; co
   return data[0];
 }
 
-export async function deleteNews(id: number) {
+export async function deleteNews(id: number | string) {
   const { error } = await supabase
     .from('news')
     .delete()
@@ -69,7 +69,7 @@ export async function createPartner(partnerData: { name: string; category?: stri
   return data[0];
 }
 
-export async function deletePartner(id: number) {
+export async function deletePartner(id: number | string) {
   const { error } = await supabase
     .from('partners')
     .delete()
@@ -105,7 +105,7 @@ export async function createEvent(eventData: { title: string; description: strin
   return data[0];
 }
 
-export async function deleteEvent(id: number) {
+export async function deleteEvent(id: number | string) {
   const { error } = await supabase
     .from('events')
     .delete()
@@ -162,7 +162,7 @@ export async function createGallery(galleryData: { image_url: string; caption?: 
   return data[0];
 }
 
-export async function deleteGallery(id: number) {
+export async function deleteGallery(id: number | string) {
   const { error } = await supabase
     .from('gallery')
     .delete()
