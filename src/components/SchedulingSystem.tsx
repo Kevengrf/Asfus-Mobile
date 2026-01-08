@@ -20,9 +20,10 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/lib/supabase/client";
-import { Loader2, Plus, Trash2, Car, Users, Home } from "lucide-react";
+import { supabase, getLotteryPeriods } from "@/lib/supabase/client"; // Import getLotteryPeriods
+import { Loader2, Plus, Trash2, Car, Users, Home, Trophy } from "lucide-react"; // Added Trophy icon for lottery
 import { ProfileHeader } from "./ProfileHeader";
+import { AgendamentoCalendar } from "./AgendamentoCalendar"; // Verify this import if separate component, or if inlined. Wait, the previous file was AgendamentoCalendar.tsx, but here it uses Calendar from ui/calendar. I need to replace the usage of Calendar with AgendamentoCalendar.
 
 type AppointmentType = 'dayuse' | 'evento' | 'apartamentos';
 
@@ -30,10 +31,11 @@ type Appointment = {
     id: number;
     start_date: string;
     end_date: string;
-    status: 'pendente' | 'aprovado' | 'rejeitado';
+    status: 'pendente' | 'aprovado' | 'rejeitado' | 'em_sorteio'; // Added em_sorteio
     type: AppointmentType;
     house_number?: number;
     license_plate?: string;
+    is_lottery?: boolean; // Added is_lottery
 };
 
 type Guest = {
@@ -54,6 +56,9 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
     const [licensePlate, setLicensePlate] = React.useState('');
     const [guests, setGuests] = React.useState<Guest[]>([]);
 
+    // Lottery State
+    const [lotteryPeriods, setLotteryPeriods] = React.useState<any[]>([]);
+
     // Guest Form State
     const [newGuest, setNewGuest] = React.useState<Guest>({ name: '', cpf: '', sex: '', contact: '' });
 
@@ -67,9 +72,16 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [formMessage, setFormMessage] = React.useState<{ type: 'error' | 'success', text: string } | null>(null);
 
+
+    // ... (rest of state)
+
     const fetchPageData = React.useCallback(async () => {
         setIsLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
+
+        // 1. Fetch Lottery Periods
+        const periods = await getLotteryPeriods();
+        setLotteryPeriods(periods);
 
         if (user && showHistory) {
             const { data: userAppointmentsData } = await supabase
@@ -83,7 +95,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
         const { data: allAppointmentsData, error } = await supabase
             .from('appointments')
             .select('*')
-            .in('status', ['aprovado', 'pendente']);
+            .in('status', ['aprovado', 'pendente', 'em_sorteio']); // Added em_sorteio
 
         if (error) {
             alert(`Erro ao buscar agendamentos: ${error.message}`);
@@ -111,6 +123,20 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
         return new Date(dateString);
     };
 
+    const isDateInLottery = (date: Date) => {
+        return lotteryPeriods.some(period => {
+            const d = new Date(date);
+            d.setHours(0, 0, 0, 0);
+            // Assuming period dates are strings YYYY-MM-DD
+            // Construct dates with time set to noon to avoid timezone shift issues when just comparing dates
+            const start = new Date(period.start_date + 'T12:00:00');
+            const end = new Date(period.end_date + 'T12:00:00');
+            start.setHours(0, 0, 0, 0);
+            end.setHours(0, 0, 0, 0);
+            return d >= start && d <= end;
+        });
+    };
+
     const processAppointmentsForCalendar = (appointments: Appointment[]) => {
         let pending: Date[] = [];
         let blockedEvento: Date[] = [];
@@ -118,6 +144,9 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
         appointments.forEach(app => {
             if (!app.start_date || !app.end_date) return;
+            // Skip lottery appointments for blockage logic (they don't block)
+            // But we might want to highlight them if they are mine? Handled by AgendamentoCalendar via 'agendamentos' prop.
+
             const interval = eachDayOfInterval({
                 start: parseSupabaseDate(app.start_date),
                 end: parseSupabaseDate(app.end_date)
@@ -132,8 +161,12 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                     blockedEvento.push(...interval);
                 } else if (app.type === 'apartamentos') {
                     interval.forEach(date => {
-                        const dateString = format(date, 'yyyy-MM-dd');
-                        approvedApartamentoCount[dateString] = (approvedApartamentoCount[dateString] || 0) + 1;
+                        // IF this date is a lottery date, do NOT count towards blockage limit (11)
+                        // because lottery allows unlimited applicants until the draw.
+                        if (!isDateInLottery(date)) {
+                            const dateString = format(date, 'yyyy-MM-dd');
+                            approvedApartamentoCount[dateString] = (approvedApartamentoCount[dateString] || 0) + 1;
+                        }
                     });
                 }
             }
@@ -235,37 +268,6 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
         }
 
         try {
-            if (appointmentType === 'evento') {
-                const { data: existingEvents, error: eventError } = await supabase
-                    .from('appointments')
-                    .select('id')
-                    .eq('type', 'evento')
-                    .in('status', ['aprovado', 'pendente'])
-                    .lte('start_date', format(endDate, "yyyy-MM-dd"))
-                    .gte('end_date', format(startDate, "yyyy-MM-dd"));
-
-                if (eventError) throw eventError;
-                if (existingEvents && existingEvents.length > 0) {
-                    throw new Error(`Já existe um Evento agendado/pendente para esta data.`);
-                }
-            }
-
-            if (appointmentType === 'apartamentos') {
-                const { data: conflictingCasa, error: conflictingCasaError } = await supabase
-                    .from('appointments')
-                    .select('id')
-                    .eq('type', 'apartamentos')
-                    .eq('house_number', houseNumber)
-                    .in('status', ['aprovado', 'pendente'])
-                    .lte('start_date', format(endDate, "yyyy-MM-dd"))
-                    .gte('end_date', format(startDate, "yyyy-MM-dd"));
-
-                if (conflictingCasaError) throw conflictingCasaError;
-                if (conflictingCasa && conflictingCasa.length > 0) {
-                    throw new Error(`O Apartamento ${houseNumber} já possui uma reserva ou solicitação para este período.`);
-                }
-            }
-
             const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('role')
@@ -274,19 +276,57 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
             if (profileError || !profileData) throw new Error('Erro ao verificar o papel do usuário.');
 
-            if (profileData.role !== 'admin') {
-                const now = new Date();
-                const day = now.getDay();
-                const hour = now.getHours();
-                const isWeekend = day === 0 || day === 5 || day === 6;
-                const isLateThursday = day === 4 && hour >= 17;
+            // Determine if this is a lottery booking
+            const isLottery = isDateInLottery(startDate);
+            const initialStatus = isLottery ? 'em_sorteio' : 'pendente';
 
-                if (isWeekend || isLateThursday) {
-                    throw new Error('Os agendamentos só podem ser realizados de Segunda a Quinta-feira, até às 17h.');
+            // Skip strict validation for Lottery periods (except maybe duplicate by SAME user, but user allowed multiple?)
+            // For now, if lottery, skip the "conflicting" checks blocks
+
+            if (!isLottery) {
+                if (profileData.role !== 'admin') {
+                    const now = new Date();
+                    const day = now.getDay();
+                    const hour = now.getHours();
+                    const isWeekend = day === 0 || day === 5 || day === 6;
+                    const isLateThursday = day === 4 && hour >= 17;
+
+                    if (isWeekend || isLateThursday) {
+                        throw new Error('Os agendamentos só podem ser realizados de Segunda a Quinta-feira, até às 17h.');
+                    }
+                }
+
+                if (appointmentType === 'evento') {
+                    const { data: existingEvents, error: eventError } = await supabase
+                        .from('appointments')
+                        .select('id')
+                        .eq('type', 'evento')
+                        .in('status', ['aprovado', 'pendente'])
+                        .lte('start_date', format(endDate, "yyyy-MM-dd"))
+                        .gte('end_date', format(startDate, "yyyy-MM-dd"));
+
+                    if (eventError) throw eventError;
+                    if (existingEvents && existingEvents.length > 0) {
+                        throw new Error(`Já existe um Evento agendado/pendente para esta data.`);
+                    }
+                }
+
+                if (appointmentType === 'apartamentos') {
+                    const { data: conflictingCasa, error: conflictingCasaError } = await supabase
+                        .from('appointments')
+                        .select('id')
+                        .eq('type', 'apartamentos')
+                        .eq('house_number', houseNumber)
+                        .in('status', ['aprovado', 'pendente'])
+                        .lte('start_date', format(endDate, "yyyy-MM-dd"))
+                        .gte('end_date', format(startDate, "yyyy-MM-dd"));
+
+                    if (conflictingCasaError) throw conflictingCasaError;
+                    if (conflictingCasa && conflictingCasa.length > 0) {
+                        throw new Error(`O Apartamento ${houseNumber} já possui uma reserva ou solicitação para este período.`);
+                    }
                 }
             }
-
-            const initialStatus = 'pendente';
 
             const normalizeDate = (date: Date) => {
                 const newDate = new Date(date);
@@ -308,6 +348,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                     type: appointmentType,
                     house_number: appointmentType === 'apartamentos' ? houseNumber : null,
                     license_plate: licensePlate || null,
+                    is_lottery: isLottery,
                 })
                 .select()
                 .single();
@@ -338,7 +379,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                 }
             }
 
-            setFormMessage({ type: 'success', text: "Solicitação enviada com sucesso!" });
+            setFormMessage({ type: 'success', text: isLottery ? "Inscrição no Sorteio realizada com sucesso!" : "Solicitação enviada com sucesso!" });
             setDateRange(undefined);
             setHouseNumber(undefined);
             setLicensePlate('');
@@ -548,8 +589,12 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                                     </TableCell>
                                                     <TableCell className="uppercase text-muted-foreground text-sm">{app.license_plate || '-'}</TableCell>
                                                     <TableCell>
-                                                        <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : 'destructive')} className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
-                                                            {app.status}
+                                                        <Badge variant={app.status === 'aprovado' ? 'default' : (app.status === 'pendente' ? 'secondary' : (app.status === 'em_sorteio' ? 'outline' : 'destructive'))}
+                                                            className={
+                                                                app.status === 'aprovado' ? 'bg-green-600 hover:bg-green-700' :
+                                                                    app.status === 'em_sorteio' ? 'border-amber-500 text-amber-600 bg-amber-50' : ''
+                                                            }>
+                                                            {app.status === 'em_sorteio' ? 'Sorteio' : app.status}
                                                         </Badge>
                                                     </TableCell>
                                                 </TableRow>

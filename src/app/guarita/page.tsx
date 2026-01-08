@@ -43,12 +43,13 @@ type Appointment = {
 
 export default function GuaritaPage() {
     const [searchTerm, setSearchTerm] = React.useState('');
+    const [filterDate, setFilterDate] = React.useState('');
     const [appointments, setAppointments] = React.useState<Appointment[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [selectedAppointment, setSelectedAppointment] = React.useState<Appointment | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
 
-    const fetchTodayAppointments = React.useCallback(async () => {
+    const fetchAppointments = React.useCallback(async () => {
         setIsLoading(true);
         const today = new Date().toISOString().split('T')[0];
 
@@ -60,8 +61,21 @@ export default function GuaritaPage() {
                 appointment_guests (id, name, cpf, sex)
             `)
             .in('status', ['aprovado', 'pendente'])
-            .lte('start_date', today)
-            .gte('end_date', today);
+
+        if (filterDate) {
+            // Specific Date: Must be active coverage (start <= date <= end)
+            // Actually, usually users want "Starts on" or "Covers". active coverage is best.
+            query = query
+                .lte('start_date', filterDate)
+                .gte('end_date', filterDate);
+        } else {
+            // Default: "All future or ongoing"
+            // Start date doesn't matter as long as End date is in future/today.
+            query = query.gte('end_date', today);
+        }
+
+        // Sort by start_date ascending (nearest first)
+        query = query.order('start_date', { ascending: true });
 
         const { data, error } = await query;
 
@@ -71,38 +85,30 @@ export default function GuaritaPage() {
             setAppointments(data as any);
         }
         setIsLoading(false);
-    }, []);
+    }, [filterDate]);
 
     const handleSearch = async () => {
         if (!searchTerm) {
-            fetchTodayAppointments();
+            fetchAppointments();
             return;
         }
 
         setIsLoading(true);
-        // Search logic: complicated because related tables. 
-        // For simplicity, we fetch recent valid appointments and filter client-side or use specific RPCs.
-        // Or we assume security searches for *today* or upcoming.
-        // Let's search broadly for active appointments matching the term in Plate, OR Profile Name.
 
-        // Supabase basic search on relations is tricky without text search setup.
-        // We'll fetch 'active' (start_date >= today - 30 days) to keep it performant and filter in memory for this MVP.
-        // Ideally, backend search function is better.
+        const today = new Date().toISOString().split('T')[0];
 
-        const today = new Date();
-        const past = new Date();
-        past.setDate(today.getDate() - 30); // Look back 30 days max
-
-        const { data, error } = await supabase
+        let query = supabase
             .from('appointments')
             .select(`
                 *,
                 profiles (nome_completo, email, cpf, telefone),
                 appointment_guests (id, name, cpf, sex)
             `)
-            .gte('end_date', past.toISOString().split('T')[0]) // Not finished yet or recently finished
+            .gte('end_date', today) // Search only future/active by default to avoid huge lists
             .in('status', ['aprovado', 'pendente'])
             .order('start_date', { ascending: false });
+
+        const { data, error } = await query;
 
         if (data) {
             const lowerTerm = searchTerm.toLowerCase();
@@ -120,8 +126,8 @@ export default function GuaritaPage() {
     };
 
     React.useEffect(() => {
-        fetchTodayAppointments();
-    }, [fetchTodayAppointments]);
+        fetchAppointments();
+    }, [fetchAppointments]);
 
     const openDetails = (app: Appointment) => {
         setSelectedAppointment(app);
@@ -146,19 +152,29 @@ export default function GuaritaPage() {
                     </Button>
                 </div>
 
-                {/* Search */}
+                {/* Search & Filter */}
                 <Card>
                     <CardHeader className="pb-3">
                         <CardTitle className="text-lg">Buscar Acesso</CardTitle>
                     </CardHeader>
-                    <CardContent className="flex gap-2">
-                        <Input
-                            placeholder="Placa, Nome, CPF..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        />
-                        <Button onClick={handleSearch}><Search className="w-4 h-4 md:mr-2" /> <span className="hidden md:inline">Buscar</span></Button>
+                    <CardContent className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1 flex gap-2">
+                            <Input
+                                placeholder="Placa, Nome, CPF..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            />
+                            <Button onClick={handleSearch}><Search className="w-4 h-4 md:mr-2" /> <span className="hidden md:inline">Buscar</span></Button>
+                        </div>
+                        <div className="w-full md:w-48">
+                            <Input
+                                type="date"
+                                value={filterDate}
+                                onChange={(e) => setFilterDate(e.target.value)}
+                                className="w-full"
+                            />
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -166,7 +182,7 @@ export default function GuaritaPage() {
                 <div className="space-y-4">
                     <h2 className="font-bold text-lg text-slate-700 flex items-center gap-2">
                         <CalendarCheck className="w-5 h-5" />
-                        {searchTerm ? 'Resultados da Pesquisa' : 'Agendamentos de Hoje'}
+                        {searchTerm ? 'Resultados da Pesquisa' : (filterDate ? `Agendamentos para ${format(new Date(filterDate), 'dd/MM')}` : 'Próximos Agendamentos')}
                     </h2>
 
                     {isLoading ? (

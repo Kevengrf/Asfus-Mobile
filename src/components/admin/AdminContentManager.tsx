@@ -11,13 +11,13 @@ interface AdminContentManagerProps<T> {
   contentType: string;
   fetchFunction: () => Promise<T[]>;
   createFunction: (data: any) => Promise<T>;
-  deleteFunction: (id: number) => Promise<void>;
+  deleteFunction: (id: number | string) => Promise<void>;
   uploadImageFunction?: (file: File, bucketName?: string) => Promise<string>;
   fields: { name: string; label: string; type: string; required?: boolean; placeholder?: string; options?: { value: string; label: string }[] }[];
   displayFields: { key: string; label: string }[];
 }
 
-export function AdminContentManager<T extends { id: number; title?: string; name?: string; created_at?: string; event_date?: string }>({
+export function AdminContentManager<T extends { id: number | string; title?: string; name?: string; created_at?: string; event_date?: string }>({
   contentType,
   fetchFunction,
   createFunction,
@@ -102,7 +102,7 @@ export function AdminContentManager<T extends { id: number; title?: string; name
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number | string) => {
     if (!confirm('Tem certeza que deseja deletar este item?')) return;
     setLoading(true);
     setError(null);
