@@ -10,7 +10,9 @@ type PendingProfile = {
     id: string;
     nome_completo: string;
     email: string;
-    cpf: string;
+    cpf: string | null;
+    telefone: string | null;
+    status: 'pendente'; // We know they are pending
     created_at: string;
     role: string;
 };
