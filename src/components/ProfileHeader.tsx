@@ -252,33 +252,33 @@ export function ProfileHeader() {
                             <h3 className="font-bold uppercase tracking-wider">Detalhes Pessoais</h3>
                         </div>
 
-                        <div className="p-6 space-y-4 flex-1 overflow-y-auto">
+                        <div className="p-6 space-y-4 flex-1 overflow-y-auto text-slate-800"> {/* Force dark text inside this light card */}
                             <div className="space-y-1">
-                                <label className="text-xs text-slate-400 uppercase font-bold">CPF</label>
-                                <p className="font-medium text-slate-700">{profile.cpf || 'Não informado'}</p>
+                                <label className="text-xs text-slate-500 uppercase font-bold">CPF</label>
+                                <p className="font-medium text-slate-800">{profile.cpf || 'Não informado'}</p>
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs text-slate-400 uppercase font-bold">Email</label>
-                                <p className="font-medium text-slate-700 text-sm break-all">{profile.email}</p>
+                                <label className="text-xs text-slate-500 uppercase font-bold">Email</label>
+                                <p className="font-medium text-slate-800 text-sm break-all">{profile.email}</p>
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs text-slate-400 uppercase font-bold">Data de Nascimento</label>
-                                <p className="font-medium text-slate-700">{formatDate(profile.dt_nasc)}</p>
+                                <label className="text-xs text-slate-500 uppercase font-bold">Data de Nascimento</label>
+                                <p className="font-medium text-slate-800">{formatDate(profile.dt_nasc)}</p>
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs text-slate-400 uppercase font-bold">Telefone</label>
-                                <p className="font-medium text-slate-700">{profile.telefone || '---'}</p>
+                                <label className="text-xs text-slate-500 uppercase font-bold">Telefone</label>
+                                <p className="font-medium text-slate-800">{profile.telefone || '---'}</p>
                             </div>
 
                             {/* Dependents Section */}
                             {profile.dependentes && profile.dependentes.length > 0 && (
                                 <div className="pt-4 border-t border-slate-200">
-                                    <label className="text-xs text-slate-400 uppercase font-bold block mb-2">Dependentes</label>
+                                    <label className="text-xs text-slate-500 uppercase font-bold block mb-2">Dependentes</label>
                                     <ul className="space-y-2">
                                         {profile.dependentes.map((dep: any, i: number) => (
-                                            <li key={i} className="text-sm bg-white p-2 rounded border border-slate-100 shadow-sm flex justify-between">
-                                                <span className="font-medium text-slate-700">{dep.nome}</span>
-                                                <span className="text-slate-400 text-xs">{dep.parentesco}</span>
+                                            <li key={i} className="text-sm bg-white p-2 rounded border border-slate-200 shadow-sm flex justify-between text-slate-800">
+                                                <span className="font-medium">{dep.nome}</span>
+                                                <span className="text-slate-500 text-xs">{dep.parentesco}</span>
                                             </li>
                                         ))}
                                     </ul>
@@ -286,7 +286,7 @@ export function ProfileHeader() {
                             )}
                         </div>
 
-                        <div className="p-4 bg-slate-100 text-center text-xs text-slate-400 border-t">
+                        <div className="p-4 bg-slate-100 text-center text-xs text-slate-500 border-t border-slate-200">
                             <p>Clique para virar</p>
                             <div className="mt-1 font-mono">{profile.id.substring(0, 8)}...</div>
                         </div>

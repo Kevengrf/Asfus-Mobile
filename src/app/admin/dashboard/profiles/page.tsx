@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { logAction } from "@/lib/audit";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Check, X, User } from "lucide-react";
@@ -56,6 +57,9 @@ export default function ProfilesApprovalsPage() {
 
             if (error) throw error;
 
+            // Log Action
+            await logAction('Aprovar Foto de Perfil', `Perfil: ${profile.nome_completo}`, { profile_id: profile.id });
+
             // Remove from local list
             setProfiles(prev => prev.filter(p => p.id !== profile.id));
 
@@ -80,6 +84,9 @@ export default function ProfilesApprovalsPage() {
                 .eq('id', profile.id);
 
             if (error) throw error;
+
+            // Log Action
+            await logAction('Rejeitar Foto de Perfil', `Perfil: ${profile.nome_completo}`, { profile_id: profile.id });
 
             // Remove from local list
             setProfiles(prev => prev.filter(p => p.id !== profile.id));

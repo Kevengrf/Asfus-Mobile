@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, subDays, startOfMonth, startOfWeek, endOfWeek, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import Papa from "papaparse";
+import * as XLSX from "xlsx";
+import { logAction } from "@/lib/audit";
 import {
   Table,
   TableBody,
@@ -14,8 +15,16 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/lib/supabase/client";
-import { Download, Loader2, Car, Users, Eye, User } from "lucide-react";
+import { Download, Loader2, Car, Users, Eye, User, CalendarRange, DollarSign } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -44,10 +53,15 @@ type Appointment = {
   appointment_guests: { id: number; amount: number; name: string; cpf: string; contact: string; sex: string; }[]; // Relation for counting
 };
 
+type FilterType = 'all' | 'last_30' | 'last_7' | 'this_month' | 'last_month' | 'custom';
+
 export default function AdminAppointmentsPage() {
   const [appointments, setAppointments] = React.useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
+  const [filterType, setFilterType] = React.useState<FilterType>('all');
+  const [customStartDate, setCustomStartDate] = React.useState('');
+  const [customEndDate, setCustomEndDate] = React.useState('');
 
   const fetchAppointments = React.useCallback(async () => {
     setIsLoading(true);
@@ -97,13 +111,19 @@ export default function AdminAppointmentsPage() {
     const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
     if (!error) {
       setAppointments(prev => prev.map(app => app.id === id ? { ...app, status } : app));
+
+      // Log Action
+      const app = appointments.find(a => a.id === id);
+      const target = `Agendamento #${id} - ${app?.profiles?.nome_completo}`;
+      await logAction(status === 'aprovado' ? 'Aprovar Agendamento' : 'Rejeitar Agendamento', target, { appointment_id: id, new_status: status });
+
     } else {
       alert("Erro ao atualizar o agendamento.");
     }
   };
 
   const getTypeName = (app: Appointment) => {
-    if (app.type === 'dayuse') return 'Dayuse';
+    if (app.type === 'dayuse') return 'Day-use';
     if (app.type === 'evento') return 'Evento';
     if (app.type === 'lazer') return 'Evento (Legado)';
     if (app.type === 'apartamentos') return `Apto ${app.house_number}`;
@@ -117,8 +137,54 @@ export default function AdminAppointmentsPage() {
     return app.appointment_guests.reduce((sum, g) => sum + (g.amount || 10), 0);
   };
 
+  const filteredAppointments = React.useMemo(() => {
+    if (filterType === 'all') return appointments;
+
+    const now = new Date();
+    let start: Date;
+    let end: Date = endOfDay(now);
+
+    switch (filterType) {
+      case 'last_30':
+        start = subDays(now, 30);
+        break;
+      case 'last_7':
+        start = subDays(now, 7);
+        break;
+      case 'this_month':
+        start = startOfMonth(now);
+        break;
+      case 'last_month':
+        start = startOfMonth(subDays(startOfMonth(now), 1));
+        end = endOfDay(subDays(startOfMonth(now), 1));
+        break;
+      case 'custom':
+        if (!customStartDate || !customEndDate) return appointments;
+        start = startOfDay(new Date(customStartDate));
+        end = endOfDay(new Date(customEndDate));
+        break;
+      default:
+        return appointments;
+    }
+
+    return appointments.filter(app => {
+      if (!app.start_date) return false;
+      const appDate = new Date(app.start_date); // Filter by start date
+      return isWithinInterval(appDate, { start, end });
+    });
+  }, [appointments, filterType, customStartDate, customEndDate]);
+
+  const totalGuests = React.useMemo(() => {
+    return filteredAppointments.reduce((sum, app) => sum + (app.appointment_guests?.length || 0), 0);
+  }, [filteredAppointments]);
+
+  const totalCost = React.useMemo(() => {
+    return filteredAppointments.reduce((sum, app) => sum + calculateExtraCost(app), 0);
+  }, [filteredAppointments]);
+
+
   const handleExport = () => {
-    const dataToExport = appointments.map(app => {
+    const dataToExport = filteredAppointments.map(app => {
       const guestNames = app.appointment_guests?.map(g => `${g.name} (CPF: ${g.cpf})`).join('; ') || '';
       return {
         "Nome do Associado": app.profiles?.nome_completo || "N/A",
@@ -128,21 +194,15 @@ export default function AdminAppointmentsPage() {
         "Placa": app.license_plate || 'N/A',
         "Convidados": app.appointment_guests?.length || 0,
         "Detalhes Convidados": guestNames,
-        "Custo Extra (R$)": calculateExtraCost(app).toFixed(2),
+        "Custo Extra (R$)": calculateExtraCost(app),
         "Status": app.status,
       };
     });
 
-    const csv = Papa.unparse(dataToExport);
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `relatorio_agendamentos_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Agendamentos");
+    XLSX.writeFile(workbook, `relatorio_agendamentos_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
   const openDetails = (app: Appointment) => {
@@ -150,19 +210,108 @@ export default function AdminAppointmentsPage() {
     setIsDetailsOpen(true);
   };
 
+  const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
+  const [deletePassword, setDeletePassword] = React.useState('');
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
+  // Import locally to avoid circular deps if needed, generic import at top is better but this works
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleDeleteAll = async () => {
+    if (!deletePassword) return alert("Digite sua senha.");
+    setIsDeleting(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { deleteAllAppointments } = await import("@/app/admin/actions");
+      const res = await deleteAllAppointments(deletePassword);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        alert(res.message);
+        setIsDeleteOpen(false);
+        setDeletePassword('');
+        fetchAppointments(); // Refresh list
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Erro desconhecido.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <CardTitle>Gerenciamento de Agendamentos</CardTitle>
           <CardDescription>Aprove, rejeite e exporte as solicitações de reserva.</CardDescription>
         </div>
-        <Button onClick={handleExport} disabled={appointments.length === 0}>
-          <Download className="mr-2 h-4 w-4" />
-          Exportar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setIsDeleteOpen(true)} variant="destructive" className="bg-red-600 hover:bg-red-700">
+            <span className="mr-2">⚠</span> Excluir Tudo
+          </Button>
+          <Button onClick={handleExport} disabled={filteredAppointments.length === 0} className="bg-green-600 hover:bg-green-700">
+            <Download className="mr-2 h-4 w-4" />
+            Exportar XLSX
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 rounded-lg border">
+          <div className="w-full md:w-48">
+            <label className="text-xs font-medium mb-1 block">Filtrar por Período</label>
+            <Select value={filterType} onValueChange={(v) => setFilterType(v as FilterType)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todo o Histórico</SelectItem>
+                <SelectItem value="last_7">Últimos 7 Dias</SelectItem>
+                <SelectItem value="last_30">Últimos 30 Dias</SelectItem>
+                <SelectItem value="this_month">Este Mês</SelectItem>
+                <SelectItem value="last_month">Mês Passado</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {filterType === 'custom' && (
+            <div className="flex gap-2 items-end">
+              <div>
+                <label className="text-xs font-medium mb-1 block">Início</label>
+                <Input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1 block">Fim</label>
+                <Input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Totals Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="bg-blue-50 border-blue-200">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">Total Convidados</p>
+                <p className="text-2xl font-bold text-blue-800">{totalGuests}</p>
+              </div>
+              <Users className="h-8 w-8 text-blue-300" />
+            </CardContent>
+          </Card>
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600">Custo Total (Folha)</p>
+                <p className="text-2xl font-bold text-green-800">R$ {totalCost.toFixed(2)}</p>
+              </div>
+              <DollarSign className="h-8 w-8 text-green-300" />
+            </CardContent>
+          </Card>
+        </div>
         {isLoading ? (
           <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
         ) : (
@@ -318,12 +467,12 @@ export default function AdminAppointmentsPage() {
             {selectedAppointment?.appointment_guests && selectedAppointment.appointment_guests.length > 0 ? (
               selectedAppointment.appointment_guests.map((guest, index) => (
                 <div key={index} className="p-3 border rounded-md bg-slate-50 flex flex-col gap-1">
-                  <div className="font-bold text-sm">{guest.name}</div>
-                  <div className="text-xs text-muted-foreground flex justify-between">
+                  <div className="font-bold text-sm text-slate-800">{guest.name}</div>
+                  <div className="text-xs text-slate-600 flex justify-between">
                     <span>CPF: {guest.cpf}</span>
                     <span>Sexo: {guest.sex}</span>
                   </div>
-                  {guest.contact && <div className="text-xs text-muted-foreground">Contato: {guest.contact}</div>}
+                  {guest.contact && <div className="text-xs text-slate-600">Contato: {guest.contact}</div>}
                 </div>
               ))
             ) : (
@@ -335,6 +484,41 @@ export default function AdminAppointmentsPage() {
               <span>Total Convidados: {selectedAppointment?.appointment_guests?.length || 0}</span>
               <span>Total R$: {selectedAppointment ? calculateExtraCost(selectedAppointment).toFixed(2) : '0.00'}</span>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DELETE CONFIRMATION DIALOG */}
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent className="max-w-md border-red-500 border-2">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <span className="text-2xl">⚠</span> AÇÃO IRREVERSÍVEL
+            </DialogTitle>
+            <DialogDescription className="text-slate-900 font-medium pt-2">
+              Você está prestes a <span className="text-red-600 font-bold uppercase">EXCLUIR TODOS OS AGENDAMENTOS</span> do sistema.
+              <ul className="list-disc pl-5 mt-2 space-y-1 text-sm text-slate-600 font-normal">
+                <li>Todos os históricos serão apagados.</li>
+                <li>Dados de teste e produção serão perdidos.</li>
+                <li>Esta ação será registrada na auditoria.</li>
+              </ul>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-bold block mb-2">Digite sua senha de administrador para confirmar:</label>
+            <Input
+              type="password"
+              placeholder="Sua senha..."
+              value={deletePassword}
+              onChange={e => setDeletePassword(e.target.value)}
+              className="border-red-200 focus-visible:ring-red-500"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsDeleteOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDeleteAll} disabled={isDeleting}>
+              {isDeleting ? 'Excluindo...' : 'CONFIRMAR EXCLUSÃO'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

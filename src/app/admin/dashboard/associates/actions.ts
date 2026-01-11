@@ -183,6 +183,19 @@ export async function approveAssociate(userId: string) {
   }
 
   revalidatePath('/admin/dashboard');
+
+  // Log Action
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabaseRel = createClient();
+  const { data: { user: adminUser } } = await supabaseRel.auth.getUser();
+
+  if (adminUser) {
+    const { logActionServer } = await import("@/lib/audit-server");
+    // Fetch user name for target?
+    const { data: targetProfile } = await supabaseAdmin.from('profiles').select('nome_completo').eq('id', userId).single();
+    await logActionServer(adminUser.id, 'Aprovar Associado', `Associado: ${targetProfile?.nome_completo || userId}`, { associate_id: userId });
+  }
+
   return { message: 'Associado aprovado com sucesso!' };
 }
 
@@ -199,6 +212,18 @@ export async function rejectAssociate(userId: string) {
   }
 
   revalidatePath('/admin/dashboard');
+
+  // Log Action
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabaseRel = createClient();
+  const { data: { user: adminUser } } = await supabaseRel.auth.getUser();
+
+  if (adminUser) {
+    const { logActionServer } = await import("@/lib/audit-server");
+    const { data: targetProfile } = await supabaseAdmin.from('profiles').select('nome_completo').eq('id', userId).single();
+    await logActionServer(adminUser.id, 'Rejeitar Associado', `Associado: ${targetProfile?.nome_completo || userId}`, { associate_id: userId });
+  }
+
   return { message: 'Associado rejeitado com sucesso!' };
 }
 

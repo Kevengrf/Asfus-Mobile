@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { usePathname } from "next/navigation";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -20,10 +21,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
-  const isAdminPage = pathname.startsWith('/admin');
+  // Hide Navbar only on Admin Dashboard pages, NOT on Admin Login
+  const isAdminPage = pathname.startsWith('/admin') && !pathname.startsWith('/admin/login');
 
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/Logo_ASFUS.svg" />
         <title>ASFUS - Associação dos Funcionários de SUAPE</title>
@@ -34,11 +36,18 @@ export default function RootLayout({
           inter.variable
         )}
       >
-        <div className="flex flex-col min-h-screen">
-          {!isAdminPage && !pathname.startsWith('/videos') && <Navbar />}
-          <main className="flex-grow">{children}</main>
-          {!isAdminPage && !pathname.startsWith('/videos') && <Footer />}
-        </div>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <div className="flex flex-col min-h-screen">
+            {!isAdminPage && !pathname.startsWith('/videos') && <Navbar />}
+            <main className="flex-grow">{children}</main>
+            {!isAdminPage && !pathname.startsWith('/videos') && <Footer />}
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );

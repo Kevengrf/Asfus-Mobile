@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { AdminContentManager } from "@/components/admin/AdminContentManager";
 import { getLotteryPeriods, createLotteryPeriod, deleteLotteryPeriod, supabase } from "@/lib/supabase/client";
+import { logAction } from "@/lib/audit";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -203,6 +204,13 @@ export default function AdminLotteryPage() {
         }
 
         alert("Sorteio finalizado e dados atualizados!");
+
+        // Log Action
+        await logAction('Executar Sorteio', `Periodo: ${periods.find(p => p.id === selectedPeriodId)?.name}`, {
+            winners_count: winners.length,
+            period_id: selectedPeriodId
+        });
+
         setLoadingParticipants(false);
         setParticipants([]); // Clear
         setWinners([]);

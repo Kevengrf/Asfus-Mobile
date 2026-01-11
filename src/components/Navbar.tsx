@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AsfusLogo } from "@/components/ui/asfus-logo";
 import { Menu } from "lucide-react";
+import { ModeToggle, ModeToggleMobile } from "@/components/mode-toggle";
 
 export function Navbar() {
   const navLinks = [
@@ -61,6 +62,8 @@ export function Navbar() {
           >
             <Link href="/register">Pré-Cadastro</Link>
           </Button>
+
+          <ModeToggle />
         </div>
 
         <div className="lg:hidden">
@@ -109,6 +112,9 @@ export function Navbar() {
                       <Link href="/register">Pré-Cadastro</Link>
                     </Button>
                   </SheetClose>
+                  <div className="flex justify-start w-full">
+                    <ModeToggleMobile />
+                  </div>
                 </div>
               </div>
             </SheetContent>

@@ -137,7 +137,25 @@ export async function createAdminUser(
 
   // --- Sucesso ---
   // Revalida o path para que a lista de admins seja atualizada na página
+  // Sucesso
+  // Revalida o path para que a lista de admins seja atualizada na página
   revalidatePath('/admin/dashboard/admins');
+
+  // Log Action (Server Side)
+  // We need the ID of the CURRENT admin who is CREATING this new admin.
+  // Ideally, we should fetch it from the session.
+  const { data: { user: currentUser } } = await supabaseAdmin.auth.admin.getUserById(user.id);
+  // Wait, getUserById gets the NEW user. We need the CURRENT session user.
+  // In server actions, we use createClient() from supabase/server to get session.
+
+  // Let's get the current admin ID
+  const supabase = createClient();
+  const { data: { user: adminUser } } = await supabase.auth.getUser();
+
+  if (adminUser) {
+    const { logActionServer } = await import("@/lib/audit-server");
+    await logActionServer(adminUser.id, 'Criar Admin', `Novo Admin: ${name} (${email})`, { new_admin_id: user.id });
+  }
 
   return {
     message: `Administrador "${name}" criado com sucesso!`,
@@ -234,8 +252,60 @@ export async function demoteAdmin(userId: string) {
 }
 
 export async function logout() {
-  const supabase = createClient(); // Server client
+  const supabase = createClient();
   await supabase.auth.signOut();
-  revalidatePath('/', 'layout'); // Revalidate all layouts
-  redirect('/login'); // Redirect to login page
+  revalidatePath('/', 'layout');
+  redirect('/login');
+}
+
+export async function logoutAdmin() {
+  const supabase = createClient();
+  await supabase.auth.signOut();
+  revalidatePath('/', 'layout');
+  redirect('/admin/login');
+}
+
+export async function deleteAllAppointments(password: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user || !user.email) return { error: 'Usuário não autenticado.' };
+
+  // 1. Password Verification
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: password
+  });
+
+  if (signInError) {
+    return { error: 'Senha incorreta. Ação cancelada.' };
+  }
+
+  // 2. Perform Deletion
+  // Use supabaseAdmin to bypass RLS and delete everything
+  const { error: deleteGuestsError } = await supabaseAdmin
+    .from('appointment_guests')
+    .delete()
+    .neq('id', 0); // Hack to delete all
+
+  if (deleteGuestsError) {
+    console.error("Error deleting guests:", deleteGuestsError);
+  }
+
+  const { error: deleteApptError } = await supabaseAdmin
+    .from('appointments')
+    .delete()
+    .neq('id', 0); // Hack to delete all
+
+  if (deleteApptError) {
+    console.error("Error deleting appointments:", deleteApptError);
+    return { error: 'Erro ao excluir agendamentos.' };
+  }
+
+  // 3. Log Action
+  const { logActionServer } = await import("@/lib/audit-server");
+  await logActionServer(user.id, 'Excluir Todos os Dados', 'Exclusão em Massa de Agendamentos (Reset)', { user_email: user.email });
+
+  revalidatePath('/admin/dashboard/appointments');
+  return { success: true, message: 'Todos os agendamentos foram excluídos com sucesso.' };
 }

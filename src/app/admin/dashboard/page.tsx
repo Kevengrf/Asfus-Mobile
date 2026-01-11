@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { ApprovalsClient } from "@/components/admin/ApprovalsClient";
+import AdminDashboardClient from "@/components/admin/AdminDashboardClient";
 
 export const dynamic = 'force-dynamic';
 
@@ -15,5 +15,5 @@ export default async function AdminDashboardPage() {
     return <div>Erro ao carregar solicitações.</div>;
   }
 
-  return <ApprovalsClient pendingProfiles={pendingProfiles as any} />;
+  return <AdminDashboardClient pendingProfiles={pendingProfiles as any} />;
 }

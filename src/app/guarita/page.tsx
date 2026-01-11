@@ -27,6 +27,7 @@ type Appointment = {
     house_number: number | null;
     license_plate: string | null;
     status: string;
+    checked_in_at: string | null;
     profiles: {
         nome_completo: string;
         email: string;
@@ -48,6 +49,7 @@ export default function GuaritaPage() {
     const [isLoading, setIsLoading] = React.useState(true);
     const [selectedAppointment, setSelectedAppointment] = React.useState<Appointment | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
+    const [isCheckingIn, setIsCheckingIn] = React.useState(false);
 
     const fetchAppointments = React.useCallback(async () => {
         setIsLoading(true);
@@ -125,6 +127,33 @@ export default function GuaritaPage() {
         setIsLoading(false);
     };
 
+    const handleCheckIn = async (appointmentId: number) => {
+        if (!confirm('Confirmar entrada do associado?')) return;
+
+        setIsCheckingIn(true);
+        const now = new Date().toISOString();
+
+        const { error } = await supabase
+            .from('appointments')
+            .update({ checked_in_at: now })
+            .eq('id', appointmentId);
+
+        if (error) {
+            console.error('Error checking in:', error);
+            alert('Erro ao realizar check-in.');
+        } else {
+            // Update local state
+            setAppointments(prev => prev.map(app =>
+                app.id === appointmentId ? { ...app, checked_in_at: now } : app
+            ));
+            if (selectedAppointment && selectedAppointment.id === appointmentId) {
+                setSelectedAppointment({ ...selectedAppointment, checked_in_at: now });
+            }
+            alert('Check-in realizado com sucesso!');
+        }
+        setIsCheckingIn(false);
+    };
+
     React.useEffect(() => {
         fetchAppointments();
     }, [fetchAppointments]);
@@ -135,17 +164,17 @@ export default function GuaritaPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 pb-20 md:pb-4">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 pb-20 md:pb-4">
             <div className="max-w-4xl mx-auto space-y-6">
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
+                <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm border dark:border-slate-800">
                     <div className="mb-4 md:mb-0">
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <h1 className="text-2xl font-bold flex items-center gap-2 dark:text-white">
                             <AlertTriangle className="text-orange-500" />
                             Controle de Portaria
                         </h1>
-                        <p className="text-muted-foreground text-sm">Verifique o acesso de associados e veículos.</p>
+                        <p className="text-muted-foreground text-sm dark:text-slate-400">Verifique o acesso de associados e veículos.</p>
                     </div>
                     <Button variant="outline" onClick={() => { supabase.auth.signOut(); window.location.href = '/login'; }}>
                         Sair
@@ -180,7 +209,7 @@ export default function GuaritaPage() {
 
                 {/* List */}
                 <div className="space-y-4">
-                    <h2 className="font-bold text-lg text-slate-700 flex items-center gap-2">
+                    <h2 className="font-bold text-lg text-slate-700 dark:text-slate-200 flex items-center gap-2">
                         <CalendarCheck className="w-5 h-5" />
                         {searchTerm ? 'Resultados da Pesquisa' : (filterDate ? `Agendamentos para ${format(new Date(filterDate), 'dd/MM')}` : 'Próximos Agendamentos')}
                     </h2>
@@ -189,10 +218,17 @@ export default function GuaritaPage() {
                         <div className="text-center p-8 text-muted-foreground">Carregando...</div>
                     ) : appointments.length > 0 ? (
                         appointments.map(app => (
-                            <Card key={app.id} className="overflow-hidden border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openDetails(app)}>
+                            <Card key={app.id} className={`overflow-hidden border-l-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${app.status === 'aprovado' ? 'border-l-green-500' : 'border-l-blue-500'}`} onClick={() => openDetails(app)}>
                                 <CardContent className="p-4 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                                     <div className="flex-1">
-                                        <h3 className="font-bold text-lg">{app.profiles?.nome_completo || 'Sem Nome'}</h3>
+                                        <div className="flex justify-between items-start md:block">
+                                            <h3 className="font-bold text-lg">{app.profiles?.nome_completo || 'Sem Nome'}</h3>
+                                            {app.checked_in_at && (
+                                                <Badge variant="outline" className="md:hidden border-green-600 text-green-700 bg-green-50">
+                                                    Check-in OK
+                                                </Badge>
+                                            )}
+                                        </div>
                                         <div className="text-sm text-muted-foreground flex flex-col md:flex-row gap-1 md:gap-4 mt-1">
                                             <span className="flex items-center gap-1"><User className="w-3 h-3" /> CPF: {app.profiles?.cpf}</span>
                                             <div className="flex items-center gap-2 mt-1 md:mt-0">
@@ -204,9 +240,16 @@ export default function GuaritaPage() {
 
                                     <div className="flex flex-row md:flex-col items-center gap-4 md:gap-2 w-full md:w-auto justify-between md:justify-end">
                                         <div className="text-right">
-                                            <Badge variant={app.status === 'aprovado' ? 'default' : 'secondary'} className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
-                                                {app.status.toUpperCase()}
-                                            </Badge>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <Badge variant={app.status === 'aprovado' ? 'default' : 'secondary'} className={app.status === 'aprovado' ? 'bg-green-600' : ''}>
+                                                    {app.status.toUpperCase()}
+                                                </Badge>
+                                                {app.checked_in_at && (
+                                                    <Badge variant="outline" className="hidden md:inline-flex border-green-600 text-green-700 bg-green-50">
+                                                        Check-in: {format(new Date(app.checked_in_at), 'HH:mm dd/MM')}
+                                                    </Badge>
+                                                )}
+                                            </div>
                                             <div className="text-xs text-muted-foreground mt-1 capitalize">{app.type} {app.house_number ? `- Casa ${app.house_number}` : ''}</div>
                                         </div>
                                         <Button size="icon" variant="ghost" className="md:hidden"><Eye /></Button>
@@ -215,7 +258,7 @@ export default function GuaritaPage() {
                             </Card>
                         ))
                     ) : (
-                        <div className="text-center p-12 bg-white rounded-lg border border-dashed">
+                        <div className="text-center p-12 bg-white dark:bg-slate-900 border border-dashed dark:border-slate-800 rounded-lg">
                             Nenhum registro encontrado.
                         </div>
                     )}
@@ -226,16 +269,23 @@ export default function GuaritaPage() {
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                 <DialogContent className="max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>Detalhes do Acesso</DialogTitle>
+                        <DialogTitle className="flex items-center justify-between">
+                            <span>Detalhes do Acesso</span>
+                            {selectedAppointment?.checked_in_at && (
+                                <Badge variant="outline" className="border-green-600 text-green-700 bg-green-50">
+                                    Check-in: {format(new Date(selectedAppointment.checked_in_at), 'HH:mm')}
+                                </Badge>
+                            )}
+                        </DialogTitle>
                         <DialogDescription>Confira os dados abaixo.</DialogDescription>
                     </DialogHeader>
 
                     {selectedAppointment && (
                         <div className="space-y-6">
                             {/* Associate Info */}
-                            <div className="bg-slate-50 p-3 rounded-md border">
+                            <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-md border dark:border-slate-800">
                                 <h4 className="text-sm font-bold text-slate-500 mb-2 uppercase flex items-center gap-2"><User className="w-4 h-4" /> Titular</h4>
-                                <div className="text-lg font-bold">{selectedAppointment.profiles?.nome_completo}</div>
+                                <div className="text-lg font-bold dark:text-white">{selectedAppointment.profiles?.nome_completo}</div>
                                 <div className="grid grid-cols-2 gap-2 text-sm mt-1">
                                     <span>CPF: {selectedAppointment.profiles?.cpf}</span>
                                     <span>Tel: {selectedAppointment.profiles?.telefone}</span>
@@ -244,11 +294,11 @@ export default function GuaritaPage() {
 
                             {/* Booking Info */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="border p-3 rounded-md flex flex-col items-center justify-center bg-slate-100">
+                                <div className="border dark:border-slate-800 p-3 rounded-md flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900">
                                     <h4 className="text-xs font-bold text-slate-500 mb-2 uppercase w-full text-left">Veículo</h4>
                                     <LicensePlate plate={selectedAppointment.license_plate} size="md" />
                                 </div>
-                                <div className="border p-3 rounded-md">
+                                <div className="border p-3 rounded-md bg-slate-50 dark:bg-slate-900 dark:border-slate-800">
                                     <h4 className="text-xs font-bold text-slate-500 mb-1 uppercase">Período</h4>
                                     <div className="text-sm font-semibold">
                                         {format(new Date(selectedAppointment.start_date), 'dd/MM')} até {format(new Date(selectedAppointment.end_date), 'dd/MM')}
@@ -279,8 +329,22 @@ export default function GuaritaPage() {
                         </div>
                     )}
 
-                    <DialogFooter>
-                        <Button className="w-full" size="lg" onClick={() => setIsDetailsOpen(false)}>Fechar</Button>
+                    <DialogFooter className="flex-col sm:justify-between gap-2">
+                        {selectedAppointment && !selectedAppointment.checked_in_at ? (
+                            <Button
+                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold"
+                                size="lg"
+                                onClick={() => handleCheckIn(selectedAppointment.id)}
+                                disabled={isCheckingIn}
+                            >
+                                {isCheckingIn ? "Registrando..." : "✅ Confirmar Entrada (Check-in)"}
+                            </Button>
+                        ) : (
+                            <div className="w-full text-center text-sm text-green-600 font-medium py-2 border border-green-200 bg-green-50 rounded">
+                                Check-in já realizado.
+                            </div>
+                        )}
+                        <Button className="w-full" variant="outline" size="lg" onClick={() => setIsDetailsOpen(false)}>Fechar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

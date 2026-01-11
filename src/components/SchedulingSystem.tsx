@@ -75,9 +75,30 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
     // ... (rest of state)
 
+    // Price State
+    const [prices, setPrices] = React.useState({
+        guest: 10.00,
+        dayuse: 0.00,
+        evento: 0.00,
+        apartamento: 0.00
+    });
+
     const fetchPageData = React.useCallback(async () => {
         setIsLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
+
+        // 0. Fetch Prices
+        const { data: validSettings } = await supabase.from('system_settings').select('*');
+        if (validSettings) {
+            const priceMap: any = {};
+            validSettings.forEach((s: any) => priceMap[s.key] = Number(s.value));
+            setPrices({
+                guest: priceMap['price_guest'] ?? 10.00,
+                dayuse: priceMap['price_day_use'] ?? 0.00,
+                evento: priceMap['price_evento'] ?? 0.00,
+                apartamento: priceMap['price_apartamento'] ?? 0.00
+            });
+        }
 
         // 1. Fetch Lottery Periods
         const periods = await getLotteryPeriods();
@@ -364,7 +385,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                     cpf: guest.cpf,
                     sex: guest.sex,
                     contact: guest.contact,
-                    amount: 10.00 // Fixed price
+                    amount: prices.guest // Dynamic price
                 }));
 
                 const { error: guestsError } = await supabase
@@ -395,8 +416,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
     };
 
     return (
-        <div className="space-y-12">
-            <ProfileHeader />
+        <div className="space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
                     <Card className="h-full">
@@ -441,7 +461,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                 <div className="grid grid-cols-1 gap-2">
                                     <Label className={`flex items-center gap-3 cursor-pointer p-3 rounded-md border transition-all ${appointmentType === 'dayuse' ? 'bg-blue-100 border-blue-400 ring-1 ring-blue-400' : 'hover:bg-slate-50'}`}>
                                         <input type="radio" name="appointmentType" value="dayuse" checked={appointmentType === 'dayuse'} onChange={() => { setAppointmentType('dayuse'); setDateRange(undefined); }} className="w-4 h-4 text-blue-600" />
-                                        <span>Dayuse (Todos)</span>
+                                        <span className="font-semibold text-lg">Day-use</span>
                                     </Label>
                                     <Label className={`flex items-center gap-3 cursor-pointer p-3 rounded-md border transition-all ${appointmentType === 'evento' ? 'bg-blue-100 border-blue-400 ring-1 ring-blue-400' : 'hover:bg-slate-50'}`}>
                                         <input type="radio" name="appointmentType" value="evento" checked={appointmentType === 'evento'} onChange={() => { setAppointmentType('evento'); setDateRange(undefined); }} className="w-4 h-4 text-blue-600" />
@@ -516,7 +536,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                             {(appointmentType === 'dayuse' || appointmentType === 'evento' || appointmentType === 'apartamentos') && (
                                 <div className="space-y-4 border-t pt-4">
                                     <Label className="flex items-center gap-2 font-bold text-base"><Users className="w-4 h-4" /> Convidados</Label>
-                                    <p className="text-xs text-muted-foreground">Cada convidado gera uma cobrança de R$ 10,00 na sua folha.</p>
+                                    <p className="text-xs text-muted-foreground">Cada convidado gera uma cobrança de R$ {prices.guest.toFixed(2).replace('.', ',')} na sua folha.</p>
 
                                     <div className="grid grid-cols-2 gap-2">
                                         <Input placeholder="Nome" value={newGuest.name} onChange={e => setNewGuest({ ...newGuest, name: e.target.value })} className="col-span-2" />
@@ -542,7 +562,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                             ))}
                                             <div className="flex justify-between items-center font-bold pt-2 text-blue-700">
                                                 <span>Total Extra:</span>
-                                                <span>R$ {(guests.length * 10).toFixed(2)}</span>
+                                                <span>R$ {(guests.length * prices.guest).toFixed(2).replace('.', ',')}</span>
                                             </div>
                                         </div>
                                     )}
@@ -563,16 +583,24 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
 
             {showHistory && (
                 <div>
-                    <h2 className="text-2xl font-bold mb-4">Seu Histórico</h2>
-                    <Card>
+                    <h2 className="text-2xl font-bold mb-4 text-slate-800">Seu Histórico</h2>
+                    <Card className="bg-white border-slate-200">
                         <CardContent className="p-0">
                             <div className="hidden md:block">
                                 <Table>
-                                    <TableHeader><TableRow><TableHead>Período</TableHead><TableHead>Tipo</TableHead><TableHead>Custos</TableHead><TableHead>Placa</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                                    <TableHeader>
+                                        <TableRow className="hover:bg-slate-50">
+                                            <TableHead className="text-slate-600">Período</TableHead>
+                                            <TableHead className="text-slate-600">Tipo</TableHead>
+                                            <TableHead className="text-slate-600">Custos</TableHead>
+                                            <TableHead className="text-slate-600">Placa</TableHead>
+                                            <TableHead className="text-slate-600">Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
                                     <TableBody>
                                         {userAppointments.length > 0 ? (
                                             userAppointments.map((app) => (
-                                                <TableRow key={app.id}>
+                                                <TableRow key={app.id} className="hover:bg-slate-50 border-b border-slate-100 text-slate-700">
                                                     <TableCell>{app.start_date ? format(parseSupabaseDate(app.start_date), "dd/MM/yy") : ''}</TableCell>
                                                     <TableCell className="capitalize">{app.type === 'apartamentos' ? `Apto ${app.house_number}` : app.type}</TableCell>
                                                     <TableCell>
@@ -600,7 +628,7 @@ export function SchedulingSystem({ showHistory = true }: SchedulingSystemProps) 
                                                 </TableRow>
                                             ))
                                         ) : (
-                                            <TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum agendamento.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={4} className="h-24 text-center text-slate-500">Nenhum agendamento.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
