@@ -215,12 +215,12 @@ export default function AdminAppointmentsPage() {
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Import locally to avoid circular deps if needed, generic import at top is better but this works
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const handleDeleteAll = async () => {
     if (!deletePassword) return alert("Digite sua senha.");
     setIsDeleting(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const { deleteAllAppointments } = await import("@/app/admin/actions");
       const res = await deleteAllAppointments(deletePassword);
       if (res.error) {
